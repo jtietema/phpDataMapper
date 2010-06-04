@@ -25,8 +25,8 @@ class phpDataMapper_Base
 	protected static $_queryLog = array();
 	
 	// Store cached field info
-	protected $_fields = array();
-	protected $_relations = array();
+	protected $_fields = NULL;
+	protected $_relations = NULL;
 	protected $_primaryKey;
 	
 	// Data source setup info
@@ -169,9 +169,12 @@ class phpDataMapper_Base
 	 */
 	public function fields()
 	{
-		if($this->_fields) {
+		if($this->_fields !== NULL) {
 			$returnFields = $this->_fields;
 		} else {
+		  $this->_fields = array();
+		  $this->_relations = array();
+		  
 			$getFields = create_function('$obj', 'return get_object_vars($obj);');
 			$fields = $getFields($this);
 			
@@ -240,7 +243,8 @@ class phpDataMapper_Base
 	 */
 	public function relations()
 	{
-		if(!$this->_relations) {
+		if($this->_relations === NULL) {
+		  // Fields and relations haven't been initialized yet.
 			$this->fields();
 		}
 		return $this->_relations;
