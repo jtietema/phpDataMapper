@@ -15,6 +15,9 @@ class phpDataMapper_Entity
 	protected $_setterIgnore = array();
 	
 	
+	protected $_new = true;
+	
+	
 	/**
 	 * Constructor function
 	 */
@@ -48,6 +51,18 @@ class phpDataMapper_Entity
 	public function dirty()
 	{
 	  return count($this->dataModified()) > 0;
+	}
+	
+	
+	public function isNew()
+	{
+	  return $this->_new;
+	}
+	
+	
+	public function setIsNew($is_new)
+	{
+	  $this->_new = (bool)$is_new;
 	}
 	
 	
@@ -86,6 +101,8 @@ class phpDataMapper_Entity
 	{
 	  $this->_data = array_merge($this->_data, $this->_dataModified);
 	  $this->_dataModified = array();
+	  
+	  $this->setIsNew(false);
 	}
 	
 	

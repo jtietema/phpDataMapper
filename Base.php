@@ -359,51 +359,51 @@ class phpDataMapper_Base
 	}
 	
 	
-	/**
-	 * Get result set for given PDO Statement
-	 */
-	public function getResultSet($stmt)
-	{
-		if($stmt instanceof PDOStatement) {
-			$results = array();
-			$resultsIdentities = array();
-			
-			// Set object to fetch results into
-			$stmt->setFetchMode(PDO::FETCH_CLASS, $this->_entityClass);
-			
-			// Fetch all results into new DataMapper_Result class
-			while($entity = $stmt->fetch(PDO::FETCH_CLASS)) {
-				
-				// Load relations for this row
-				$relations = $this->getRelationsFor($entity);
-				if($relations && is_array($relations) && count($relations) > 0) {
-					foreach($relations as $relationCol => $relationObj) {
-						$entity->$relationCol = $relationObj;
-					}
-				}
-				
-				// Store in array for ResultSet
-				$results[] = $entity;
-				
-				// Store primary key of each unique record in set
-				$pk = $this->primaryKey($entity);
-				if(!in_array($pk, $resultsIdentities) && !empty($pk)) {
-					$resultsIdentities[] = $pk;
-				}
-				
-				// Mark row as loaded
-				$entity->loaded(true);
-			}
-			// Ensure set is closed
-			$stmt->closeCursor();
-			
-			return new $this->_collectionClass($results, $resultsIdentities);
-			
-		} else {
-			return array();
-			//throw new $this->_exceptionClass(__METHOD__ . " expected PDOStatement object");
-		}
-	}
+  // /**
+  //  * Get result set for given PDO Statement
+  //  */
+  // public function getResultSet($stmt)
+  // {
+  //  if($stmt instanceof PDOStatement) {
+  //    $results = array();
+  //    $resultsIdentities = array();
+  //    
+  //    // Set object to fetch results into
+  //    $stmt->setFetchMode(PDO::FETCH_CLASS, $this->_entityClass);
+  //    
+  //    // Fetch all results into new DataMapper_Result class
+  //    while($entity = $stmt->fetch(PDO::FETCH_CLASS)) {
+  //      
+  //      // Load relations for this row
+  //      $relations = $this->getRelationsFor($entity);
+  //      if($relations && is_array($relations) && count($relations) > 0) {
+  //        foreach($relations as $relationCol => $relationObj) {
+  //          $entity->$relationCol = $relationObj;
+  //        }
+  //      }
+  //      
+  //      // Store in array for ResultSet
+  //      $results[] = $entity;
+  //      
+  //      // Store primary key of each unique record in set
+  //      $pk = $this->primaryKey($entity);
+  //      if(!in_array($pk, $resultsIdentities) && !empty($pk)) {
+  //        $resultsIdentities[] = $pk;
+  //      }
+  //      
+  //      // Mark row as loaded
+  //      $entity->loaded(true);
+  //    }
+  //    // Ensure set is closed
+  //    $stmt->closeCursor();
+  //    
+  //    return new $this->_collectionClass($results, $resultsIdentities);
+  //    
+  //  } else {
+  //    return array();
+  //    //throw new $this->_exceptionClass(__METHOD__ . " expected PDOStatement object");
+  //  }
+  // }
 	
 	
 	/**
@@ -537,11 +537,8 @@ class phpDataMapper_Base
 		
 		// Run validation
 		if($this->validate($entity)) {
-			$pk = $this->primaryKey($entity);
-			// No primary key, insert
-			if(empty($pk)) {
+			if($entity->isNew()) {
 				$result = $this->insert($entity);
-			// Has primary key, update
 			} else {
 				$result = $this->update($entity);
 			}

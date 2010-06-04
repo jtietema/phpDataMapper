@@ -601,6 +601,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 			
 			// Fetch all results into new DataMapper_Result class
 			while($row = $stmt->fetch(PDO::FETCH_CLASS)) {
+			  $row->setIsNew(false);
 				
 				// Load relations for this row
 				$relations = $mapper->getRelationsFor($row);
