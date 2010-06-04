@@ -80,4 +80,15 @@ class CRUDTest extends PHPUnit_Framework_TestCase
 		
 		$this->assertTrue($result);
 	}
+	
+	public function testTracksDirtiness()
+	{
+	  $mapper = $this->blogMapper;
+	  $post = $mapper->first();
+	  $this->assertFalse($post->dirty(), "Entity shouldn't be marked as dirty after loading.");
+	  $post->title = 'test';
+	  $this->assertTrue($post->dirty(), "Entity should be marked as dirty after changing an attribute.");
+	  $result = $mapper->save($post);
+	  $this->assertFalse($post->dirty(), "Entity should be marked as non-dirty after saving the entity.");
+	}
 }

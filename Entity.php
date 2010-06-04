@@ -8,7 +8,7 @@
  */
 class phpDataMapper_Entity
 {
-	protected $_loaded;
+	protected $_loaded = false;
 	protected $_data = array();
 	protected $_dataModified = array();
 	protected $_getterIgnore = array();
@@ -24,9 +24,6 @@ class phpDataMapper_Entity
 		if($data !== null) {
 			$this->data($data);
 		}
-		
-		// Mark record as loaded
-		$this->loaded(true);
 	}
 	
 	
@@ -39,6 +36,18 @@ class phpDataMapper_Entity
 	public function loaded($loaded)
 	{
 		$this->_loaded = (bool) $loaded;
+	}
+	
+	
+	/**
+	 * Determines if this entity is dirty, i.e. if it has modified data that has
+	 * not been saved to the database yet.
+	 *
+	 * @return bool
+	 */
+	public function dirty()
+	{
+	  return count($this->dataModified()) > 0;
 	}
 	
 	
@@ -70,6 +79,13 @@ class phpDataMapper_Entity
 	public function dataModified()
 	{
 		return $this->_dataModified;
+	}
+	
+	
+	public function wasSaved()
+	{
+	  $this->_data = array_merge($this->_data, $this->_dataModified);
+	  $this->_dataModified = array();
 	}
 	
 	

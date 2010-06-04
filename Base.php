@@ -287,6 +287,7 @@ class phpDataMapper_Base
 		// Create new row object
 		if(!$primaryKeyValue) {
 			$entity = new $this->_entityClass();
+			$entity->loaded(true);
 		
 		// Find record by primary key
 		} else {
@@ -597,6 +598,7 @@ class phpDataMapper_Base
 		
 		// Save related rows
 		if($result) {
+		  $entity->wasSaved();
 			$this->saveRelatedRowsFor($entity);
 		}
 		
@@ -627,6 +629,7 @@ class phpDataMapper_Base
 		
 		// Save related rows
 		if($result) {
+		  $entity->wasSaved();
 			$this->saveRelatedRowsFor($entity);
 		}
 		
@@ -684,7 +687,7 @@ class phpDataMapper_Base
 		foreach($this->fields() as $field => $fieldAttrs) {
 			if(isset($fieldAttrs['required']) && true === $fieldAttrs['required']) {
 				// Required field
-				if(empty($entity->$field)) {
+				if($this->isEmpty($entity->$field)) {
 					$this->error($field, "Required field '" . $field . "' was left blank");
 				}
 			}
@@ -716,7 +719,7 @@ class phpDataMapper_Base
 	 */
 	public function isEmpty($value)
 	{
-		return (empty($value) && 0 !== $value);
+		return (empty($value) && '0' !== $value && 0 !== $value);
 	}
 	
 	
