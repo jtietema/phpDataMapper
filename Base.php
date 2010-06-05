@@ -797,7 +797,7 @@ class phpDataMapper_Base
 	{
 		// Return errors for given field
 		if(is_string($msgs)) {
-			return isset($this->_errors[$field]) ? $this->_errors[$field] : array();
+			return isset($this->_errors[$msgs]) ? $this->_errors[$msgs] : array();
 		
 		// Set error messages from given array
 		} elseif(is_array($msgs)) {
