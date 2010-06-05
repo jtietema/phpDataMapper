@@ -200,9 +200,6 @@ class phpDataMapper_Base
 				'string' => array(
 					'length' => 255
 					),
-				'float' => array(
-					'length' => array(10,2)
-					),
 				'int' => array(
 					'length' => 10,
 					'unsigned' => true
