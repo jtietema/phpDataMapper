@@ -97,7 +97,8 @@ class phpDataMapper_Adapter_Mysql extends phpDataMapper_Adapter_PDO
 	protected function getColumnsForTable($table, $source)
 	{
 		$tableColumns = array();
-		$tblCols = $this->connection()->query("SELECT * FROM information_schema.columns WHERE table_schema = '" . $source . "' AND table_name = '" . $table . "'");
+		$tblCols = $this->connection()->query("SELECT * FROM information_schema.columns WHERE table_schema = '" . $source .
+		  "' AND table_name = '" . $table . "'");
 		
 		if($tblCols) {
 			while($columnData = $tblCols->fetch(PDO::FETCH_ASSOC)) {
@@ -197,7 +198,8 @@ class phpDataMapper_Adapter_Mysql extends phpDataMapper_Adapter_PDO
 		$syntax .= "\n, PRIMARY KEY(" . implode(',', array_map(array($this, 'quoteName'), $primaryKeys)) . ")";
 		
 		// Extra
-		$syntax .= "\n) ENGINE=" . $this->_engine . " DEFAULT CHARSET=" . $this->_charset . " COLLATE=" . $this->_collate . ";";
+		$syntax .= "\n) ENGINE=" . $this->_engine . " DEFAULT CHARSET=" . $this->_charset . " COLLATE="
+		  . $this->_collate . ";";
 		
 		return $syntax;
 	}

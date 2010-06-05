@@ -299,7 +299,8 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 			" . ($conditions ? 'WHERE ' . $conditions : '') . "
 			" . ($query->group ? 'GROUP BY ' . implode(', ', $query->group) : '') . "
 			" . ($order ? 'ORDER BY ' . implode(', ', $order) : '') . "
-			" . ($query->limit ? 'LIMIT ' . $query->limit : '') . " " . ($query->limit && $query->limitOffset ? 'OFFSET ' . $query->limitOffset: '') . "
+			" . ($query->limit ? 'LIMIT ' . $query->limit : '') . " " . ($query->limit && $query->limitOffset ? 'OFFSET '
+			  . $query->limitOffset: '') . "
 			";
 		
 		// Unset any NULL values in binds (compared as "IS NULL" and "IS NOT NULL" in SQL instead)

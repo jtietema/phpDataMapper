@@ -37,12 +37,6 @@ abstract class phpDataMapper_Mapper
 	{
 		$this->_adapter = $adapter;
 		
-		// Ensure required classes for minimum activity are loaded
-    // $this->loadClass($this->_entityClass);
-    // $this->loadClass($this->_queryClass);
-    // $this->loadClass($this->_collectionClass);
-    // $this->loadClass($this->_exceptionClass);
-		
 		// Slave adapter if given (usually for reads)
 		if(null !== $adapterRead) {
 			if($adapterRead instanceof phpDataMapper_Adapter_Interface) {
@@ -54,7 +48,9 @@ abstract class phpDataMapper_Mapper
 		
 		// Ensure table has been defined
 		if(!$this->_datasource) {
-			throw new $this->_exceptionClass("Error: Datasource name must be defined - please define the \$_datasource variable. This can be a database table name, collection or bucket name, a file name, or a URL, depending on your adapter.");
+			throw new $this->_exceptionClass("Error: Datasource name must be defined - please define the \$_datasource"
+			  . " variable. This can be a database table name, collection or bucket name, a file name, or a URL, depending on"
+			  . " your adapter.");
 		}
 		
 		// Ensure fields have been defined for current table
@@ -298,7 +294,8 @@ abstract class phpDataMapper_Mapper
 		} else {		  
 		  $pkFields = $this->primaryKeyFields();
 		  if (count($pkFields) != count($pkValues)) {
-		    throw new InvalidArgumentException(__METHOD__ . " Expected " . count($pkFields) . " primary key values, got " . count($pkValues));
+		    throw new InvalidArgumentException(__METHOD__ . " Expected " . count($pkFields) . " primary key values, got "
+		      . count($pkValues));
 		  }
 		  
 		  $conditions = array_combine($pkFields, $pkValues);
@@ -370,53 +367,6 @@ abstract class phpDataMapper_Mapper
 	}
 	
 	
-  // /**
-  //  * Get result set for given PDO Statement
-  //  */
-  // public function getResultSet($stmt)
-  // {
-  //  if($stmt instanceof PDOStatement) {
-  //    $results = array();
-  //    $resultsIdentities = array();
-  //    
-  //    // Set object to fetch results into
-  //    $stmt->setFetchMode(PDO::FETCH_CLASS, $this->_entityClass);
-  //    
-  //    // Fetch all results into new DataMapper_Result class
-  //    while($entity = $stmt->fetch(PDO::FETCH_CLASS)) {
-  //      
-  //      // Load relations for this row
-  //      $relations = $this->getRelationsFor($entity);
-  //      if($relations && is_array($relations) && count($relations) > 0) {
-  //        foreach($relations as $relationCol => $relationObj) {
-  //          $entity->$relationCol = $relationObj;
-  //        }
-  //      }
-  //      
-  //      // Store in array for ResultSet
-  //      $results[] = $entity;
-  //      
-  //      // Store primary key of each unique record in set
-  //      $pk = $this->primaryKey($entity);
-  //      if(!in_array($pk, $resultsIdentities) && !empty($pk)) {
-  //        $resultsIdentities[] = $pk;
-  //      }
-  //      
-  //      // Mark row as loaded
-  //      $entity->loaded(true);
-  //    }
-  //    // Ensure set is closed
-  //    $stmt->closeCursor();
-  //    
-  //    return new $this->_collectionClass($results, $resultsIdentities);
-  //    
-  //  } else {
-  //    return array();
-  //    //throw new $this->_exceptionClass(__METHOD__ . " expected PDOStatement object");
-  //  }
-  // }
-	
-	
 	/**
 	 * Find records with given conditions
 	 * If all parameters are empty, find all records
@@ -469,7 +419,8 @@ abstract class phpDataMapper_Mapper
 			
 			return $r;
 		} else {
-			throw new $this->_exceptionClass(__METHOD__ . " Error: Unable to execute SQL query - failed to create prepared statement from given SQL");
+			throw new $this->_exceptionClass(__METHOD__ . " Error: Unable to execute SQL query - failed to create"
+			  . " prepared statement from given SQL");
 		}
 		
 	}
@@ -701,7 +652,8 @@ abstract class phpDataMapper_Mapper
 			  $this->afterDelete($conditions);
 			}
 		} else {
-			throw new $this->_exceptionClass(__METHOD__ . " conditions must be entity object or array, given " . gettype($conditions) . "");
+			throw new $this->_exceptionClass(__METHOD__ . " conditions must be entity object or array, given "
+			  . gettype($conditions));
 		}
 		
 		return $result;

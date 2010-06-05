@@ -78,7 +78,8 @@ class phpDataMapper_Entity
 				}
 				return $this;
 			} else {
-				throw new InvalidArgumentException(__METHOD__ . " Expected array or object input - " . gettype($data) . " given");
+				throw new InvalidArgumentException(__METHOD__ . " Expected array or object input - " . gettype($data) .
+				  " given");
 			}
 		} else {
 			return $this->toArray();

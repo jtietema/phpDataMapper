@@ -7,15 +7,15 @@
  */
 interface phpDataMapper_Adapter_Interface
 {
-    /**
-    * @param mixed $host Host string or pre-existing PDO object
-	* @param string $datasource Optional if $host is PDO object
-    * @param string $username Optional if $host is PDO object
-    * @param string $password Optional if $host is PDO object
-    * @param array $options
-    * @return void
-    */
-    public function __construct($host, $datasource = null, $username = null, $password = null, array $options = array());
+  /**
+  * @param mixed $host Host string or pre-existing PDO object
+  * @param string $datasource Optional if $host is PDO object
+  * @param string $username Optional if $host is PDO object
+  * @param string $password Optional if $host is PDO object
+  * @param array $options
+  * @return void
+  */
+  public function __construct($host, $datasource = null, $username = null, $password = null, array $options = array());
 	
 	
 	/**

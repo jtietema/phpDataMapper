@@ -18,8 +18,10 @@ class phpDataMapper_Exception extends Exception
 		
 		// Show stack trace if in debug mode
 		if($debug = true) { // debug always on for now... (assignment)
-			$error .= '<div style="font-size:12px; padding:2px 8px; background:#FFFFCC; font:\'Courier New\', Courier, mono"><pre>';
-			$error .= "Code: " . $this->getCode() . "\n" . "File: " . $this->getFile() . "\n" . "Line: " . $this->getLine() . " at: \n";
+			$error .= '<div style="font-size:12px; padding:2px 8px; background:#FFFFCC; font:\'Courier New\', Courier, mono">'
+			  . '<pre>';
+			$error .= "Code: " . $this->getCode() . "\n" . "File: " . $this->getFile() . "\n" . "Line: " . $this->getLine() .
+			  " at: \n";
 			$error .= $this->getTraceAsString() . "\n";
 			$error .= '</pre></div>';
 		}
