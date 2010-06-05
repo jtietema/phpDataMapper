@@ -1,11 +1,11 @@
 <?php
-require_once dirname(__FILE__) . '/init.php';
+require_once dirname(__FILE__) . '/../init.php';
 
 /**
  * Basic CRUD Tests
  * Create, Read, Update, Delete
  */
-class CRUDTest extends PHPUnit_Framework_TestCase
+class Test_CRUD extends PHPUnit_Framework_TestCase
 {
 	protected $backupGlobals = false;
 	protected $blogMapper;
@@ -126,7 +126,7 @@ class CRUDTest extends PHPUnit_Framework_TestCase
 	  $this->assertEquals(date($mapper->adapter()->dateFormat()), $dog->updated_at);
 	  
 	  $dog2 = $mapper->get();
-	  $dog2->name = 'Chuck';
+	  $dog2->name = 'Chuck'; // Check defined in hook to prevent this name from being used.
 	  $result = $mapper->save($dog2);
 	  $this->assertFalse($result);
 	  

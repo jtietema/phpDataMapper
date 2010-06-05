@@ -1,8 +1,9 @@
 <?php
-require_once dirname(__FILE__) . '/init.php';
+require_once dirname(__FILE__) . '/../init.php';
 
-class MigrateTest extends PHPUnit_Framework_TestCase
+class Test_Migrate extends PHPUnit_Framework_TestCase
 {
+  protected $backupGlobals = false;
   protected $logEntryMapper;
   
   public function setUp()

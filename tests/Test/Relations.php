@@ -1,11 +1,12 @@
 <?php
-require_once dirname(__FILE__) . '/init.php';
+require_once dirname(__FILE__) . '/../init.php';
 
 /**
- * Basic CRUD Tests
- * Create, Read, Update, Delete
+ * Tests relations between models.
+ *
+ * @package tests
  */
-class RelationsTest extends PHPUnit_Framework_TestCase
+class Test_Relations extends PHPUnit_Framework_TestCase
 {
 	protected $backupGlobals = false;
 	protected $blogMapper;
