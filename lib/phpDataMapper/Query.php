@@ -23,7 +23,7 @@ class phpDataMapper_Query implements Countable, IteratorAggregate
 	/**
 	 *	Constructor Method
 	 */
-	public function __construct(phpDataMapper_Base $mapper)
+	public function __construct(phpDataMapper_Mapper $mapper)
 	{
 		$this->_mapper = $mapper;
 	}

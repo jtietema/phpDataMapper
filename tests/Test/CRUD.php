@@ -32,7 +32,7 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	
 	public function testMapperInstance()
 	{
-		$this->assertTrue($this->blogMapper instanceof phpDataMapper_Base);
+		$this->assertTrue($this->blogMapper instanceof phpDataMapper_Mapper);
 	}
 	
 	public function testSampleNewsInsert()

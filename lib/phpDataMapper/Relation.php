@@ -22,7 +22,7 @@ abstract class phpDataMapper_Relation
 	 * @param object $mapper DataMapper object to query on for relationship data
 	 * @param array $resultsIdentities Array of key values for given result set primary key
 	 */
-	public function __construct(phpDataMapper_Base $mapper, array $conditions, array $relationData)
+	public function __construct(phpDataMapper_Mapper $mapper, array $conditions, array $relationData)
 	{
 		$this->_mapper = $mapper;
 		$this->_conditions = $conditions;

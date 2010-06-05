@@ -1,12 +1,12 @@
 <?php
 /**
- * Base DataMapper Model
+ * Abstract mapper superclass.
  * 
  * @package phpDataMapper
  * @link http://phpdatamapper.com
  * @link http://github.com/vlucas/phpDataMapper
  */
-class phpDataMapper_Base
+abstract class phpDataMapper_Mapper
 {
 	// Class Names for required classes - Here so they can be easily overridden
 	protected $_entityClass = 'phpDataMapper_Entity';
@@ -21,9 +21,6 @@ class phpDataMapper_Base
 	// Array of error messages and types
 	protected $_errors = array();
 	
-	// Query log
-	protected static $_queryLog = array();
-	
 	// Store cached field info
 	protected $_fields = NULL;
 	protected $_relations = NULL;
@@ -31,24 +28,6 @@ class phpDataMapper_Base
 	
 	// Data source setup info
 	protected $_datasource;
-	/**
-	=== EXAMPLE fields ===
-	
-	public $id = array('type' => 'int', 'primary' => true);
-	public $name = array('type' => 'string', 'required' => true);
-	public $date_created = array('type' => 'datetime');
-	
-	=== EXAMPLE Relationship associations ===
-	
-	public $comments = array(
-		'type' => 'relation',
-		'relation' => 'HasMany',
-		'mapper' => 'CommentsModel',
-		'where' => array('comment_id' => 'entity.id'),
-		);
-	
-	======================
-	*/
 	
 	
 	/**
@@ -59,10 +38,10 @@ class phpDataMapper_Base
 		$this->_adapter = $adapter;
 		
 		// Ensure required classes for minimum activity are loaded
-		$this->loadClass($this->_entityClass);
-		$this->loadClass($this->_queryClass);
-		$this->loadClass($this->_collectionClass);
-		$this->loadClass($this->_exceptionClass);
+    // $this->loadClass($this->_entityClass);
+    // $this->loadClass($this->_queryClass);
+    // $this->loadClass($this->_collectionClass);
+    // $this->loadClass($this->_exceptionClass);
 		
 		// Slave adapter if given (usually for reads)
 		if(null !== $adapterRead) {
@@ -355,11 +334,10 @@ class phpDataMapper_Base
 				
 				// Load relation class
 				$relationClass = 'phpDataMapper_Relation_' . $relation['relation'];
-				if($loadedRel = $this->loadClass($relationClass)) {
-					// Set column equal to relation class instance
-					$relationObj = new $relationClass($mapper, $relConditions, $relation);
-					$relatedColumns[$column] = $relationObj;
-				}
+				
+				// Set column equal to relation class instance
+				$relationObj = new $relationClass($mapper, $relConditions, $relation);
+				$relatedColumns[$column] = $relationObj;
 				
 			}
 		}
@@ -478,7 +456,7 @@ class phpDataMapper_Base
 	public function query($sql, array $binds = array())
 	{
 		// Add query to log
-		self::logQuery($sql, $binds);
+		phpDataMapper::logQuery($sql, $binds);
 		
 		// Prepare and execute query
 		if($stmt = $this->adapter()->prepare($sql)) {
@@ -862,7 +840,7 @@ class phpDataMapper_Base
 	
 	/**
 	 * Called before a delete query is performed on the database. Note that the
-	 * {@link phpDataMapper_Base::delete()} method differs from other CRUD methods
+	 * {@link phpDataMapper_Mapper::delete()} method differs from other CRUD methods
 	 * in the Base class in that it expects an array of conditions instead of an
 	 * entity. Deletion can be cancelled by returning the boolean false from this
 	 * method.
@@ -880,7 +858,7 @@ class phpDataMapper_Base
 	 *
 	 * @param array $conditions
 	 * @return void
-	 * @see phpDataMapper_Base::beforeDelete()
+	 * @see phpDataMapper_Mapper::beforeDelete()
 	 */
 	public function afterDelete(array $conditions) {}
 	
@@ -951,77 +929,4 @@ class phpDataMapper_Base
 			$this->_errors[$field][] = $msg;
 		}
 	}
-	
-	
-	/**
-	 * Attempt to load class file based on phpDataMapper naming conventions
-	 */
-	public static function loadClass($className)
-	{
-		$loaded = false;
-		
-		// If class has already been defined, skip loading
-		if(class_exists($className, false)) {
-			$loaded = true;
-		} else {
-			// Require phpDataMapper_* files by assumed folder structure (naming convention)
-			if(strpos($className, "phpDataMapper") !== false) {
-				$classFile = str_replace("_", "/", $className);
-				$loaded = require_once(dirname(dirname(__FILE__)) . "/" . $classFile . ".php");
-			}
-		}
-		
-		// Ensure required class was loaded
-		/*
-		if(!$loaded) {
-			throw new Exception(__METHOD__ . " Failed: Unable to load class '" . $className . "'!");
-		}
-		*/
-		
-		return $loaded;
-	}
-	
-	
-	/**
-	 * Prints all executed SQL queries - useful for debugging
-	 */
-	public function debug($entity = null)
-	{
-		echo "<p>Executed " . $this->queryCount() . " queries:</p>";
-		echo "<pre>\n";
-		print_r(self::$_queryLog);
-		echo "</pre>\n";
-	}
-	
-	
-	/**
-	 * Get count of all queries that have been executed
-	 * 
-	 * @return int
-	 */
-	public function queryCount()
-	{
-		return count(self::$_queryLog);
-	}
-	
-	
-	/**
-	 * Log query
-	 *
-	 * @param string $sql
-	 * @param array $data
-	 */
-	public static function logQuery($sql, $data = null)
-	{
-		self::$_queryLog[] = array(
-			'query' => $sql,
-			'data' => $data
-			);
-	}
 }
-
-
-/**
- * Register static 'loadClass' function as an autoloader for files prefixed with 'phpDataMapper_'
- */
-spl_autoload_register(array('phpDataMapper_Base', 'loadClass'));

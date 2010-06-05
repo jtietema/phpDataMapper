@@ -176,7 +176,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 		$sql = $this->migrateSyntaxTableCreate($table, $formattedFields, $columnsSyntax);
 		
 		// Add query to log
-		phpDataMapper_Base::logQuery($sql);
+		phpDataMapper::logQuery($sql);
 		
 		$this->connection()->exec($sql);
 		return true;
@@ -227,7 +227,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 			$sql = $this->migrateSyntaxTableUpdate($table, $formattedFields, $columnsSyntax);
 			
 			// Add query to log
-			phpDataMapper_Base::logQuery($sql);
+			phpDataMapper::logQuery($sql);
 			
 			// Run SQL
 			$this->connection()->exec($sql);
@@ -256,7 +256,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 			" VALUES(:" . implode(', :', array_keys($binds)) . ")";
 		
 		// Add query to log
-		phpDataMapper_Base::logQuery($sql, $binds);
+		phpDataMapper::logQuery($sql, $binds);
 		
 		// Prepare update query
 		$stmt = $this->connection()->prepare($sql);
@@ -312,7 +312,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 		}
 		
 		// Add query to log
-		phpDataMapper_Base::logQuery($sql, $binds);
+		phpDataMapper::logQuery($sql, $binds);
 		
 		// Prepare update query
 		$stmt = $this->connection()->prepare($sql);
@@ -361,7 +361,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 				" WHERE " . implode(' AND ', $sqlWheres);
 			
 			// Add query to log
-			phpDataMapper_Base::logQuery($sql, $binds);
+			phpDataMapper::logQuery($sql, $binds);
 			
 			// Prepare update query
 			$stmt = $this->connection()->prepare($sql);
@@ -399,7 +399,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 		$sql .= ($conditions ? ' WHERE ' . $conditions : '');
 		
 		// Add query to log
-		phpDataMapper_Base::logQuery($sql, $binds);
+		phpDataMapper::logQuery($sql, $binds);
 		
 		$stmt = $this->connection()->prepare($sql);
 		if($stmt) {
@@ -424,7 +424,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 		$sql = "TRUNCATE TABLE " . $source;
 		
 		// Add query to log
-		phpDataMapper_Base::logQuery($sql);
+		phpDataMapper::logQuery($sql);
 		
 		return $this->connection()->exec($sql);
 	}
@@ -438,7 +438,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 		$sql = "DROP TABLE " . $source;
 		
 		// Add query to log
-		phpDataMapper_Base::logQuery($sql);
+		phpDataMapper::logQuery($sql);
 		
 		return $this->connection()->exec($sql);
 	}
@@ -452,7 +452,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 		$sql = "CREATE DATABASE " . $database;
 		
 		// Add query to log
-		phpDataMapper_Base::logQuery($sql);
+		phpDataMapper::logQuery($sql);
 		
 		return $this->connection()->exec($sql);
 	}
@@ -467,7 +467,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 		$sql = "DROP DATABASE " . $database;
 		
 		// Add query to log
-		phpDataMapper_Base::logQuery($sql);
+		phpDataMapper::logQuery($sql);
 		
 		return $this->connection()->exec($sql);
 	}

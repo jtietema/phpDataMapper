@@ -5,7 +5,7 @@ class AllTests
 {
   public static function suite()
   {
-    $suite = new PHPUnit_Framework_TestSuite('phpDataMapper');
+    $suite = new PHPUnit_Framework_TestSuite();
     
     $suite->addTestSuite('Test_Conditions');
     $suite->addTestSuite('Test_CRUD');

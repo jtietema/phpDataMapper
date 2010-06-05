@@ -1,5 +1,5 @@
 <?PHP
-class Fixture_LogEntry_Mapper extends phpDataMapper_Base
+class Fixture_LogEntry_Mapper extends phpDataMapper_Mapper
 {
   protected $_datasource = 'test_log_entry';
   

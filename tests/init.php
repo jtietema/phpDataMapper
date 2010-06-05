@@ -3,9 +3,7 @@
 require_once 'PHPUnit/Framework.php';
 
 // Require phpDataMapper
-$baseDir = dirname(dirname(__FILE__));
-require $baseDir . '/Base.php';
-require $baseDir . '/Adapter/Mysql.php';
+require dirname(__FILE__) . '/../lib/phpDataMapper.php';
 
 // Date setup
 date_default_timezone_set('America/Chicago');
@@ -54,7 +52,7 @@ spl_autoload_register('phpdm_test_autoloader');
 /**
  *
  */
-class TestMapper extends phpDataMapper_Base
+class TestMapper extends phpDataMapper_Mapper
 {
 	// Auto-migrate upon instantiation
 	public function init()
