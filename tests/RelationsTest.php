@@ -27,15 +27,16 @@ class RelationsTest extends PHPUnit_Framework_TestCase
 		$post->title = "My Awesome Blog Post";
 		$post->body = "<p>This is a really awesome super-duper post.</p><p>It's testing the relationship functions.</p>";
 		$post->date_created = date($this->blogMapper->adapter()->dateTimeFormat());
-		$postId = $this->blogMapper->save($post);
+		$result = $this->blogMapper->save($post);
 		
-		$this->assertTrue(is_numeric($postId));
+		$this->assertTrue($result);
+		$this->assertTrue(is_numeric($post->id));
 		
 		// Test selcting it to ensure it exists
-		$postx = $this->blogMapper->get($postId);
+		$postx = $this->blogMapper->get($post->id);
 		$this->assertTrue($postx instanceof phpDataMapper_Entity);
 		
-		return $postId;
+		return $post->id;
 	}
 	
 	/**
