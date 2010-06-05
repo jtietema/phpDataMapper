@@ -115,15 +115,18 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	  
 	  $mapper->validate($dog);
 	  $this->assertEquals(md5($dog->name), $dog->name_hash);
+	  $this->assertNull($dog->silly_property);
 	  
 	  $mapper->save($dog);
 	  $this->assertEquals(date($mapper->adapter()->dateFormat()), $dog->created_at);
 	  $this->assertEquals(NULL, $dog->updated_at);
+	  $this->assertEquals('Rufus_123', $dog->silly_property);
 	  
 	  $dog->name = 'Brutus';
 	  $mapper->save($dog);
 	  $this->assertEquals(md5($dog->name), $dog->name_hash);
 	  $this->assertEquals(date($mapper->adapter()->dateFormat()), $dog->updated_at);
+	  $this->assertEquals('Brutus_123', $dog->silly_property);
 	  
 	  $dog2 = $mapper->get();
 	  $dog2->name = 'Chuck'; // Check defined in hook to prevent this name from being used.

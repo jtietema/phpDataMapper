@@ -570,7 +570,7 @@ class phpDataMapper_Base
 		
 		// Run validation
 		if($this->validate($entity)) {
-		  if ($this->__beforeSave($entity) === false) {
+		  if ($this->beforeSave($entity) === false) {
 		    return false;
 		  }
 		  
@@ -581,7 +581,7 @@ class phpDataMapper_Base
 			}
 			
 			if ($result) {
-			  $this->__afterSave($entity);
+			  $this->afterSave($entity);
 			}
 		} else {
 			$result = false;
@@ -614,7 +614,7 @@ class phpDataMapper_Base
 	 */
 	private function insert(phpDataMapper_Entity $entity)
 	{		
-		if ($this->__beforeInsert($entity) === false) {
+		if ($this->beforeInsert($entity) === false) {
 		  return false;
 		}
 		
@@ -653,7 +653,7 @@ class phpDataMapper_Base
 		  $entity->wasSaved();
 			$this->saveRelatedRowsFor($entity);
 			
-			$this->__afterInsert($entity);
+			$this->afterInsert($entity);
 		}
 		
 		return (bool)$result;
@@ -667,7 +667,7 @@ class phpDataMapper_Base
 	 */
 	private function update(phpDataMapper_Entity $entity)
 	{
-	  if ($this->__beforeUpdate($entity) === false) {
+	  if ($this->beforeUpdate($entity) === false) {
 	    return false;
 	  }
 	  
@@ -692,7 +692,7 @@ class phpDataMapper_Base
 		  $entity->wasSaved();
 			$this->saveRelatedRowsFor($entity);
 			
-			$this->__afterUpdate($entity);
+			$this->afterUpdate($entity);
 		}
 		
 		return (bool)$result;
@@ -712,7 +712,7 @@ class phpDataMapper_Base
 			);
 		}
 		
-		if ($this->__beforeDelete($conditions) === false) {
+		if ($this->beforeDelete($conditions) === false) {
 		  return false;
 		}
 		
@@ -720,7 +720,7 @@ class phpDataMapper_Base
 			$result = $this->adapter()->delete($this->datasource(), $conditions);
 			
 			if ($result) {
-			  $this->__afterDelete($conditions);
+			  $this->afterDelete($conditions);
 			}
 		} else {
 			throw new $this->_exceptionClass(__METHOD__ . " conditions must be entity object or array, given " . gettype($conditions) . "");
@@ -755,7 +755,7 @@ class phpDataMapper_Base
 	 */
 	public function validate(phpDataMapper_Entity $entity)
 	{
-	  $this->__beforeValidate($entity);
+	  $this->beforeValidate($entity);
 	  
 		// Check validation rules on each feild
 		foreach($this->fields() as $field => $fieldAttrs) {
@@ -793,7 +793,7 @@ class phpDataMapper_Base
 	 * @param phpDataMapper_Entity $entity The entity that will be validated.
 	 * @return void
 	 */
-	public function __beforeValidate(phpDataMapper_Entity $entity) {}
+	public function beforeValidate(phpDataMapper_Entity $entity) {}
 	
 	
 	/**
@@ -803,7 +803,7 @@ class phpDataMapper_Base
 	 * @param phpDataMapper_Entity $entity The entity that will be inserted.
 	 * @return mixed
 	 */
-	public function __beforeInsert(phpDataMapper_Entity $entity) {}
+	public function beforeInsert(phpDataMapper_Entity $entity) {}
 	
 	
 	/**
@@ -814,7 +814,7 @@ class phpDataMapper_Base
 	 * @param phpDataMapper_Entity $entity The entity that was inserted.
 	 * @return void
 	 */
-	public function __afterInsert(phpDataMapper_Entity $entity) {}
+	public function afterInsert(phpDataMapper_Entity $entity) {}
 	
 	
 	/**
@@ -824,7 +824,7 @@ class phpDataMapper_Base
 	 * @param phpDataMapper_Entity $entity The entity that will be updated.
 	 * @return mixed
 	 */
-	public function __beforeUpdate(phpDataMapper_Entity $entity) {}
+	public function beforeUpdate(phpDataMapper_Entity $entity) {}
 	
 	
 	/**
@@ -835,7 +835,7 @@ class phpDataMapper_Base
 	 * @param phpDataMapper_Entity $entity The entity that was updated.
 	 * @return void
 	 */
-	public function __afterUpdate(phpDataMapper_Entity $entity) {}
+	public function afterUpdate(phpDataMapper_Entity $entity) {}
 	
 	
 	/**
@@ -846,7 +846,7 @@ class phpDataMapper_Base
 	 * @param phpDataMapper_Entity $entity The entity that will be saved.
 	 * @return mixed
 	 */
-	public function __beforeSave(phpDataMapper_Entity $entity) {}
+	public function beforeSave(phpDataMapper_Entity $entity) {}
 	
 	
 	/**
@@ -857,7 +857,7 @@ class phpDataMapper_Base
 	 * @param phpDataMapper_Entity $entity The entity that was saved.
 	 * @return void
 	 */
-	public function __afterSave(phpDataMapper_Entity $entity) {}
+	public function afterSave(phpDataMapper_Entity $entity) {}
 	
 	
 	/**
@@ -870,7 +870,7 @@ class phpDataMapper_Base
 	 * @param array $conditions 
 	 * @return mixed
 	 */
-	public function __beforeDelete(array $conditions) {}
+	public function beforeDelete(array $conditions) {}
 	
 	
 	/**
@@ -880,9 +880,9 @@ class phpDataMapper_Base
 	 *
 	 * @param array $conditions
 	 * @return void
-	 * @see phpDataMapper_Base::__beforeDelete()
+	 * @see phpDataMapper_Base::beforeDelete()
 	 */
-	public function __afterDelete(array $conditions) {}
+	public function afterDelete(array $conditions) {}
 	
 	
 	/**
