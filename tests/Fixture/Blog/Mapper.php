@@ -10,6 +10,7 @@ class Fixture_Blog_Mapper extends TestMapper
 	public $title = array('type' => 'string', 'required' => true);
 	public $body = array('type' => 'text', 'required' => true);
 	public $date_created = array('type' => 'datetime');
+	public $state = array('type' => 'string', 'required' => true, 'default' => 'DRAFT');
 	
 	// Each post entity 'hasMany' comment entites
 	public $comments = array(

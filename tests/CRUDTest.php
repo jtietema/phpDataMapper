@@ -81,6 +81,17 @@ class CRUDTest extends PHPUnit_Framework_TestCase
 		$this->assertTrue($result);
 	}
 	
+	public function testHandlesDefaultValues()
+	{
+	  $mapper = $this->blogMapper;
+	  $post = $mapper->get();
+	  $this->assertEquals('DRAFT', $post->state);
+	  $post->title = 'title';
+	  $post->body = 'body';
+	  $result = $mapper->save($post);
+    $this->assertTrue($result, "Required value with default prevented entity from being saved.");
+	}
+	
 	public function testTracksDirtiness()
 	{
 	  $mapper = $this->blogMapper;

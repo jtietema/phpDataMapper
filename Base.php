@@ -212,7 +212,7 @@ class phpDataMapper_Base
 			$returnFields = array();
 			foreach($fields as $fieldName => $fieldOpts) {
 				// Format field will full set of default options
-				if(isset($fieldInfo['type']) && isset($fieldTypeDefaults[$fieldOpts['type']])) {
+				if(isset($fieldOpts['type']) && isset($fieldTypeDefaults[$fieldOpts['type']])) {
 					// Include type defaults
 					$fieldOpts = array_merge($fieldDefaults, $fieldTypeDefaults[$fieldOpts['type']], $fieldOpts);
 				} else {
@@ -287,6 +287,14 @@ class phpDataMapper_Base
 		// Create new row object
 		if(!$primaryKeyValue) {
 			$entity = new $this->_entityClass();
+			
+			// Set default values.
+			foreach ($this->fields() as $fieldName => $fieldInfo) {
+			  if ($fieldInfo['default'] !== NULL) {
+			    $entity->$fieldName = $fieldInfo['default'];
+			  }
+			}
+			
 			$entity->loaded(true);
 		
 		// Find record by primary key
@@ -546,7 +554,7 @@ class phpDataMapper_Base
 			$result = false;
 		}
 		
-		return $result;
+		return (bool)$result;
 	}
 	
 	
