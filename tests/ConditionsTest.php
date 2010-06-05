@@ -22,7 +22,7 @@ class ConditionsTest extends PHPUnit_Framework_TestCase
 		
 		// Insert blog dummy data
 		for( $i = 0; $i < self::num_posts; $i++ ) {
-			$blogMapper->insert(array(
+			$blogMapper->save(array(
 				'title' => $i,
 				'body' => $i,
 				'date_created' => date($blogMapper->adapter()->dateFormat())

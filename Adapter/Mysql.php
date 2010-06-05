@@ -173,15 +173,16 @@ class phpDataMapper_Adapter_Mysql extends phpDataMapper_Adapter_PDO
 		// Keys...
 		$ki = 0;
 		$usedKeyNames = array();
+		$primaryKeys = array();
 		foreach($formattedFields as $fieldName => $fieldInfo) {
 			// Determine key field name (can't use same key name twice, so we have to append a number)
 			$fieldKeyName = $fieldName;
 			while(in_array($fieldKeyName, $usedKeyNames)) {
-				$fieldKeyName = $fieldName . '_' . $ki;
+				$fieldKeyName = $fieldName . '_' . $ki++;
 			}
 			// Key type
 			if($fieldInfo['primary']) {
-				$syntax .= "\n, PRIMARY KEY(`" . $fieldName . "`)";
+			  $primaryKeys[] = $fieldName;
 			}
 			if($fieldInfo['unique']) {
 				$syntax .= "\n, UNIQUE KEY `" . $fieldKeyName . "` (`" . $fieldName . "`)";
@@ -192,6 +193,8 @@ class phpDataMapper_Adapter_Mysql extends phpDataMapper_Adapter_PDO
 				$usedKeyNames[] = $fieldKeyName;
 			}
 		}
+		
+		$syntax .= "\n, PRIMARY KEY(" . implode(',', array_map(array($this, 'quoteName'), $primaryKeys)) . ")";
 		
 		// Extra
 		$syntax .= "\n) ENGINE=" . $this->_engine . " DEFAULT CHARSET=" . $this->_charset . " COLLATE=" . $this->_collate . ";";

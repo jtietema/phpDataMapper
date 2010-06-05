@@ -27,7 +27,7 @@ class phpDataMapper_Base
 	// Store cached field info
 	protected $_fields = NULL;
 	protected $_relations = NULL;
-	protected $_primaryKey;
+	protected $_primaryKey = NULL;
 	
 	// Data source setup info
 	protected $_datasource;
@@ -174,6 +174,7 @@ class phpDataMapper_Base
 		} else {
 		  $this->_fields = array();
 		  $this->_relations = array();
+		  $this->_primaryKey = array();
 		  
 			$getFields = create_function('$obj', 'return get_object_vars($obj);');
 			$fields = $getFields($this);
@@ -219,7 +220,7 @@ class phpDataMapper_Base
 				
 				// Store primary key
 				if($fieldOpts['primary'] === true) {
-					$this->_primaryKey = $fieldName;
+					$this->_primaryKey[] = $fieldName;
 				}
 				// Store relations (and remove them from the mix of regular fields)
 				if($fieldOpts['type'] == 'relation') {
@@ -248,21 +249,33 @@ class phpDataMapper_Base
 	}
 	
 	
-	/**
-	 * Get value of primary key for given row result
-	 */
+  /**
+   * Get the values of the primary key fields for the supplied entity.
+   *
+   * @param phpDataMapper_Entity $entity
+   * @return array
+   */
 	public function primaryKey(phpDataMapper_Entity $entity)
 	{
-		$pkField = $this->primaryKeyField();
-		return $entity->$pkField;
+		$pkFields = $this->primaryKeyFields();
+		$values = array();
+		foreach ($pkFields as $pkField) {
+		  $values[$pkField] = $entity->$pkField;
+		}
+		return $values;
 	}
 	
 	
 	/**
-	 * Get value of primary key for given row result
+	 * Get the names of the primary key fields.
+	 *
+	 * @return array
 	 */
-	public function primaryKeyField()
+	public function primaryKeyFields()
 	{
+	  if ($this->_primaryKey === NULL) {
+	    $this->fields();
+	  }
 		return $this->_primaryKey;
 	}
 	
@@ -277,12 +290,20 @@ class phpDataMapper_Base
 	
 	
 	/**
-	 * Load record from primary key
+	 * Get an entity by primary key. This method expects as many parameters as there are
+	 * primary key fields, in the order in which the fields are defined on the model.
+	 * 
+	 * When no parameters are supplied, a new record is returned.
+	 *
+	 * @param mixed $value,...
+	 * @return phpDataMapper_Entity
 	 */
-	public function get($primaryKeyValue = 0)
+	public function get()
 	{
+	  $pkValues = func_get_args();
+	  
 		// Create new row object
-		if(!$primaryKeyValue) {
+		if(count($pkValues) == 0) {
 			$entity = new $this->_entityClass();
 			
 			// Set default values.
@@ -295,8 +316,15 @@ class phpDataMapper_Base
 			$entity->loaded(true);
 		
 		// Find record by primary key
-		} else {
-			$entity = $this->first(array($this->primaryKeyField() => $primaryKeyValue));
+		} else {		  
+		  $pkFields = $this->primaryKeyFields();
+		  if (count($pkFields) != count($pkValues)) {
+		    throw new InvalidArgumentException(__METHOD__ . " Expected " . count($pkFields) . " primary key values, got " . count($pkValues));
+		  }
+		  
+		  $conditions = array_combine($pkFields, $pkValues);
+		  
+			$entity = $this->first($conditions);
 		}
 		return $entity;
 	}
@@ -555,12 +583,28 @@ class phpDataMapper_Base
 	}
 	
 	
+	private function singleSerialPrimaryKeyField()
+	{
+	  $pkFields = $this->primaryKeyFields();
+	  $fieldInfo = $this->fields();
+	  if (count($pkFields) == 1) {
+	    $pkFieldInfo = $fieldInfo[$pkFields[0]];
+	    if ($pkFieldInfo['serial']) {
+	      return $pkFields[0];
+	    }
+	  }
+	  
+	  return NULL;
+	}
+	
+	
 	/**
 	 * Insert record
 	 *
 	 * @param mixed $entity Entity object or array of field => value pairs
+	 * @return bool
 	 */
-	public function insert($entity)
+	private function insert($entity)
 	{
 		if(is_array($entity)) {
 			$entity = $this->get()->data($entity);
@@ -584,8 +628,10 @@ class phpDataMapper_Base
 			$result = $this->adapter()->create($this->datasource(), $data);
 			
 			// Update primary key on row
-			$pkField = $this->primaryKeyField();
-			$entity->$pkField = $result;
+		  $pkField = $this->singleSerialPrimaryKeyField();
+		  if ($pkField) {
+		    $entity->$pkField = $result;
+		  }
 			
 			// Load relations for this row so they can be used immediately
 			$relations = $this->getRelationsFor($entity);
@@ -604,14 +650,16 @@ class phpDataMapper_Base
 			$this->saveRelatedRowsFor($entity);
 		}
 		
-		return $result;
+		return (bool)$result;
 	}
 	
 	
 	/**
 	 * Update given row object
+	 * 
+	 * @return bool
 	 */
-	public function update(phpDataMapper_Entity $entity)
+	private function update(phpDataMapper_Entity $entity)
 	{
 		// Ensure fields exist to prevent errors
 		$binds = array();
@@ -624,7 +672,7 @@ class phpDataMapper_Base
 		
 		// Handle with adapter
 		if(count($binds) > 0) {
-			$result = $this->adapter()->update($this->datasource(), $binds, array($this->primaryKeyField() => $this->primaryKey($entity)));
+			$result = $this->adapter()->update($this->datasource(), $binds, $this->primaryKey($entity));
 		} else {
 			$result = true;
 		}
@@ -635,7 +683,7 @@ class phpDataMapper_Base
 			$this->saveRelatedRowsFor($entity);
 		}
 		
-		return $result;
+		return (bool)$result;
 	}
 	
 	
@@ -648,7 +696,7 @@ class phpDataMapper_Base
 	{
 		if($conditions instanceof phpDataMapper_Entity) {
 			$conditions = array(
-				0 => array('conditions' => array($this->primaryKeyField() => $this->primaryKey($conditions)))
+				0 => array('conditions' => $this->primaryKey($conditions))
 				);
 		}
 		

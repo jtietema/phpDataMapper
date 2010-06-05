@@ -9,19 +9,16 @@
 class phpDataMapper_Collection implements Iterator, Countable, ArrayAccess
 {
 	protected $results = array();
-	protected $resultsIdentities = array();
 	
 	
 	/**
 	 * Constructor function
 	 *
 	 * @param array $results Array of pre-loaded DataMapper_Result objects
-	 * @param array $resultsIdentities Array of key values for given result set primary key
 	 */
-	public function __construct(array $results, array $resultsIdentities = array())
+	public function __construct(array $results)
 	{
 		$this->results = $results;
-		$this->resultsIdentities = $resultsIdentities;
 	}
 	
 	

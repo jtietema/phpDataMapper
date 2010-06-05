@@ -473,6 +473,12 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	}
 	
 	
+	public function quoteName($name)
+	{
+	  return "`$name`";
+	}
+	
+	
 	/**
 	 * Return fields as a string for a query statement
 	 */
@@ -594,7 +600,6 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 		$mapper = $query->mapper();
 		if($stmt instanceof PDOStatement) {
 			$results = array();
-			$resultsIdentities = array();
 			
 			// Set object to fetch results into
 			$stmt->setFetchMode(PDO::FETCH_CLASS, $mapper->entityClass());
@@ -614,12 +619,6 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 				// Store in array for ResultSet
 				$results[] = $row;
 				
-				// Store primary key of each unique record in set
-				$pk = $mapper->primaryKey($row);
-				if(!in_array($pk, $resultsIdentities) && !empty($pk)) {
-					$resultsIdentities[] = $pk;
-				}
-				
 				// Mark row as loaded
 				$row->loaded(true);
 			}
@@ -627,7 +626,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 			$stmt->closeCursor();
 			
 			$collectionClass = $mapper->collectionClass();
-			return new $collectionClass($results, $resultsIdentities);
+			return new $collectionClass($results);
 			
 		} else {
 			$mapper->addError(__METHOD__ . " - Unable to execute query " . implode(' | ', $this->adapterRead()->errorInfo()));

@@ -38,12 +38,12 @@ class CRUDTest extends PHPUnit_Framework_TestCase
 		$post->title = "Test Post";
 		$post->body = "<p>This is a really awesome super-duper post.</p><p>It's really quite lovely.</p>";
 		$post->date_created = date($mapper->adapter()->dateTimeFormat());
-		$result = $mapper->insert($post); // returns an id
+		$result = $mapper->save($post);
 		
-		$this->assertTrue(is_numeric($result));
+		$this->assertTrue($result);
 	}
 	
-	public function testSampleNewsInsertWithEmpyNonRequiredFields()
+	public function testSampleNewsInsertWithEmptyNonRequiredFields()
 	{
 		$mapper = $this->blogMapper;
 		$post = $mapper->get();
@@ -51,12 +51,12 @@ class CRUDTest extends PHPUnit_Framework_TestCase
 		$post->body = "<p>Test post here.</p>";
 		$post->date_created = null;
 		try {
-			$result = $mapper->insert($post); // returns an id
+			$result = $mapper->save($post);
 		} catch(Exception $e) {
 			$mapper->debug();
 		}
 		
-		$this->assertTrue(is_numeric($result));
+		$this->assertTrue($result);
 	}
 	
 	public function testSampleNewsUpdate()
@@ -67,7 +67,7 @@ class CRUDTest extends PHPUnit_Framework_TestCase
 		$this->assertTrue($post instanceof phpDataMapper_Entity);
 		
 		$post->title = "Test Post Modified";
-		$result = $mapper->update($post); // returns boolean
+		$result = $mapper->save($post);
 		
 		$this->assertTrue($result);
 	}
