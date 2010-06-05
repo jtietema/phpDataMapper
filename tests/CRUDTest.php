@@ -9,6 +9,7 @@ class CRUDTest extends PHPUnit_Framework_TestCase
 {
 	protected $backupGlobals = false;
 	protected $blogMapper;
+	protected $dogMapper;
 	
 	/**
 	 * Setup/fixtures for each test
@@ -17,8 +18,11 @@ class CRUDTest extends PHPUnit_Framework_TestCase
 	{
 		// New mapper instance
 		$this->blogMapper = fixture_mapper('Blog');
+		$this->dogMapper = fixture_mapper('Dog');
 	}
-	public function tearDown() {}
+	public function tearDown() {
+	  $this->dogMapper->truncateDatasource();
+	}
 	
 	
 	public function testAdapterInstance()
@@ -101,5 +105,31 @@ class CRUDTest extends PHPUnit_Framework_TestCase
 	  $this->assertTrue($post->dirty(), "Entity should be marked as dirty after changing an attribute.");
 	  $result = $mapper->save($post);
 	  $this->assertFalse($post->dirty(), "Entity should be marked as non-dirty after saving the entity.");
+	}
+	
+	public function testExecutesHooks()
+	{
+	  $mapper = $this->dogMapper;
+	  $dog = $mapper->get();
+	  $dog->name = 'Rufus';
+	  
+	  $mapper->validate($dog);
+	  $this->assertEquals(md5($dog->name), $dog->name_hash);
+	  
+	  $mapper->save($dog);
+	  $this->assertEquals(date($mapper->adapter()->dateFormat()), $dog->created_at);
+	  $this->assertEquals(NULL, $dog->updated_at);
+	  
+	  $dog->name = 'Brutus';
+	  $mapper->save($dog);
+	  $this->assertEquals(md5($dog->name), $dog->name_hash);
+	  $this->assertEquals(date($mapper->adapter()->dateFormat()), $dog->updated_at);
+	  
+	  $dog2 = $mapper->get();
+	  $dog2->name = 'Chuck';
+	  $result = $mapper->save($dog2);
+	  $this->assertFalse($result);
+	  
+	  $this->assertFalse($mapper->first(array('name' => 'Chuck')));
 	}
 }

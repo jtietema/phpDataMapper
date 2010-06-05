@@ -570,10 +570,18 @@ class phpDataMapper_Base
 		
 		// Run validation
 		if($this->validate($entity)) {
+		  if ($this->__beforeSave($entity) === false) {
+		    return false;
+		  }
+		  
 			if($entity->isNew()) {
 				$result = $this->insert($entity);
 			} else {
 				$result = $this->update($entity);
+			}
+			
+			if ($result) {
+			  $this->__afterSave($entity);
 			}
 		} else {
 			$result = false;
@@ -599,19 +607,15 @@ class phpDataMapper_Base
 	
 	
 	/**
-	 * Insert record
+	 * Insert an entity in the database.
 	 *
-	 * @param mixed $entity Entity object or array of field => value pairs
+	 * @param phpDataMapper_Entity $entity
 	 * @return bool
 	 */
-	private function insert($entity)
-	{
-		if(is_array($entity)) {
-			$entity = $this->get()->data($entity);
-		}
-		
-		if(!($entity instanceof phpDataMapper_Entity)) {
-			throw new $this->_exceptionClass(__METHOD__ . " first argument must be entity object or array");
+	private function insert(phpDataMapper_Entity $entity)
+	{		
+		if ($this->__beforeInsert($entity) === false) {
+		  return false;
 		}
 		
 		$data = array();
@@ -648,6 +652,8 @@ class phpDataMapper_Base
 		if($result) {
 		  $entity->wasSaved();
 			$this->saveRelatedRowsFor($entity);
+			
+			$this->__afterInsert($entity);
 		}
 		
 		return (bool)$result;
@@ -661,6 +667,10 @@ class phpDataMapper_Base
 	 */
 	private function update(phpDataMapper_Entity $entity)
 	{
+	  if ($this->__beforeUpdate($entity) === false) {
+	    return false;
+	  }
+	  
 		// Ensure fields exist to prevent errors
 		$binds = array();
 		foreach($entity->dataModified() as $field => $value) {
@@ -681,6 +691,8 @@ class phpDataMapper_Base
 		if($result) {
 		  $entity->wasSaved();
 			$this->saveRelatedRowsFor($entity);
+			
+			$this->__afterUpdate($entity);
 		}
 		
 		return (bool)$result;
@@ -697,14 +709,24 @@ class phpDataMapper_Base
 		if($conditions instanceof phpDataMapper_Entity) {
 			$conditions = array(
 				0 => array('conditions' => $this->primaryKey($conditions))
-				);
+			);
+		}
+		
+		if ($this->__beforeDelete($conditions) === false) {
+		  return false;
 		}
 		
 		if(is_array($conditions)) {
-			return $this->adapter()->delete($this->datasource(), $conditions);
+			$result = $this->adapter()->delete($this->datasource(), $conditions);
+			
+			if ($result) {
+			  $this->__afterDelete($conditions);
+			}
 		} else {
 			throw new $this->_exceptionClass(__METHOD__ . " conditions must be entity object or array, given " . gettype($conditions) . "");
 		}
+		
+		return $result;
 	}
 	
 	
@@ -733,6 +755,8 @@ class phpDataMapper_Base
 	 */
 	public function validate(phpDataMapper_Entity $entity)
 	{
+	  $this->__beforeValidate($entity);
+	  
 		// Check validation rules on each feild
 		foreach($this->fields() as $field => $fieldAttrs) {
 			if(isset($fieldAttrs['required']) && true === $fieldAttrs['required']) {
@@ -759,6 +783,106 @@ class phpDataMapper_Base
 	{
 		return $this->adapter()->migrate($this->datasource(), $this->fields());
 	}
+	
+	
+	/**
+	 * Magic template method that is called just before validating an object.
+	 * Override this to fill in any "magic" required properties that would otherwise
+	 * be missing and thus fail validation.
+	 *
+	 * @param phpDataMapper_Entity $entity The entity that will be validated.
+	 * @return void
+	 */
+	public function __beforeValidate(phpDataMapper_Entity $entity) {}
+	
+	
+	/**
+	 * Called before a new entity is inserted in the database. Insertion is cancelled
+	 * if and only if this method returns the boolean false.
+	 *
+	 * @param phpDataMapper_Entity $entity The entity that will be inserted.
+	 * @return mixed
+	 */
+	public function __beforeInsert(phpDataMapper_Entity $entity) {}
+	
+	
+	/**
+	 * Called after successful insertion of an entity. Since the entity is already
+	 * inserted in the database when this method is called, there is no point in
+	 * returning false. There is no rollback mechanism.
+	 *
+	 * @param phpDataMapper_Entity $entity The entity that was inserted.
+	 * @return void
+	 */
+	public function __afterInsert(phpDataMapper_Entity $entity) {}
+	
+	
+	/**
+	 * Called before an existing entity's changes are updated in the database. The update
+	 * is cancelled if and only if this method returns the boolean false.
+	 *
+	 * @param phpDataMapper_Entity $entity The entity that will be updated.
+	 * @return mixed
+	 */
+	public function __beforeUpdate(phpDataMapper_Entity $entity) {}
+	
+	
+	/**
+	 * Called after an entity is successfully updated. Since the entity is already
+ 	 * updated in the database when this method is called, there is no point in
+ 	 * returning false. There is no rollback mechanism.
+	 *
+	 * @param phpDataMapper_Entity $entity The entity that was updated.
+	 * @return void
+	 */
+	public function __afterUpdate(phpDataMapper_Entity $entity) {}
+	
+	
+	/**
+	 * Called before an entity is saved to the databse. This can be either an
+	 * insertion of a new entity, or an update of an existing entity. Saving is
+	 * cancelled if and only if this method returns the boolean false.
+	 *
+	 * @param phpDataMapper_Entity $entity The entity that will be saved.
+	 * @return mixed
+	 */
+	public function __beforeSave(phpDataMapper_Entity $entity) {}
+	
+	
+	/**
+	 * Called after an entity is successfully saved to the database. Since the
+	 * entity is already saved to the database when this method is called,
+	 * there is no point in returning false. There is no rollback mechanism.
+	 *
+	 * @param phpDataMapper_Entity $entity The entity that was saved.
+	 * @return void
+	 */
+	public function __afterSave(phpDataMapper_Entity $entity) {}
+	
+	
+	/**
+	 * Called before a delete query is performed on the database. Note that the
+	 * {@link phpDataMapper_Base::delete()} method differs from other CRUD methods
+	 * in the Base class in that it expects an array of conditions instead of an
+	 * entity. Deletion can be cancelled by returning the boolean false from this
+	 * method.
+	 *
+	 * @param array $conditions 
+	 * @return mixed
+	 */
+	public function __beforeDelete(array $conditions) {}
+	
+	
+	/**
+	 * Called after a delete query is performed on the database. Since the
+ 	 * query is already executed when this method is called, there is no point
+ 	 * in returning false. There is no rollback mechanism.
+	 *
+	 * @param array $conditions
+	 * @return void
+	 * @see phpDataMapper_Base::__beforeDelete()
+	 */
+	public function __afterDelete(array $conditions) {}
 	
 	
 	/**
