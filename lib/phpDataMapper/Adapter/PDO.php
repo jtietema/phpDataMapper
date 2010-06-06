@@ -178,11 +178,15 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	 *
 	 * @param string $table 
 	 * @param array $fields 
-	 * @return string
+	 * @return bool True if any updates were performed, false otherwise.
 	 */
 	public function migrateTableUpdate($table, array $fields)
 	{		
 		$sql = $this->migrateSyntaxTableUpdate($table, $fields);
+		
+		if (!$sql) {
+		  return false;
+		}
 		
 		// Add query to log
 		phpDataMapper::logQuery($sql);
