@@ -6,7 +6,7 @@
  * @link http://phpdatamapper.com
  * @link http://github.com/vlucas/phpDataMapper
  */
-class phpDataMapper_Adapter_Mysql extends phpDataMapper_Adapter_PDO
+class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 {
 	// Format for date columns, formatted for PHP's date() function
 	protected $format_date = "Y-m-d";
@@ -18,40 +18,29 @@ class phpDataMapper_Adapter_Mysql extends phpDataMapper_Adapter_PDO
 	protected $_charset = 'utf8';
 	protected $_collate = 'utf8_unicode_ci';
 	
-	// Map datamapper field types to actual database adapter types
-	// @todo Have to improve this to allow custom types, callbacks, and validation
+	
+	/**
+	 * Maps phpDataMapper property types to actual adapter types.
+	 *
+	 * @var array
+	 */
 	protected $_fieldTypeMap = array(
-		'string' => array(
-			'adapter_type' => 'varchar',
-			'length' => 255
-			),
-		'email' => array(
-			'adapter_type' => 'varchar',
-			'length' => 255
-			),
-		'url' => array(
-			'adapter_type' => 'varchar',
-			'length' => 255
-			),
-		'tel' => array(
-			'adapter_type' => 'varchar',
-			'length' => 255
-			),
-		'password' => array(
-			'adapter_type' => 'varchar',
-			'length' => 255
-			),
-		'text' => array('adapter_type' => 'text'),
-		'int' => array('adapter_type' => 'int'),
-		'integer' => array('adapter_type' => 'int'),
-		'bool' => array('adapter_type' => 'tinyint', 'length' => 1),
-		'boolean' => array('adapter_type' => 'tinyint', 'length' => 1),
-		'float' => array('adapter_type' => 'float'),
-		'double' => array('adapter_type' => 'double'),
-		'date' => array('adapter_type' => 'date'),
-		'datetime' => array('adapter_type' => 'datetime'),
-		'time' => array('adapter_type' => 'time')
-		);
+	  'boolean'   => 'BOOL',
+	  'date'      => 'DATE',
+	  'datetime'  => 'DATETIME',
+	  'float'     => 'FLOAT',
+	  'integer'   => 'INT',
+	  'string'    => 'VARCHAR',
+	  'text'      => 'TEXT'
+	);
+	
+	
+	/**
+	 * List of fields that support the COLLATE operator.
+	 *
+	 * @var array
+	 */
+	protected $_collatedTypes = array('string', 'text');
 	
 	
 	/**
@@ -88,17 +77,24 @@ class phpDataMapper_Adapter_Mysql extends phpDataMapper_Adapter_PDO
 	}
 	
 	
+	protected function tableExists($table)
+	{
+	  $result = $this->connection()->query("SHOW TABLES FROM `{$this->database}` LIKE '{$table}'")->fetchAll();
+	  return count($result) > 0;
+	}
+	
+	
 	/**
-	 * Get columns for current table
+	 * Introspects the database to get current column information.
 	 *
-	 * @param String $table Table name
-	 * @return Array
+	 * @param string $table Table name
+	 * @return array A hash, where the keys are column names and the values are hashes of MySQL column info.
 	 */
-	protected function getColumnsForTable($table, $source)
+	protected function getColumnInfoForTable($table)
 	{
 		$tableColumns = array();
-		$tblCols = $this->connection()->query("SELECT * FROM information_schema.columns WHERE table_schema = '" . $source .
-		  "' AND table_name = '" . $table . "'");
+		$tblCols = $this->connection()->query("SELECT * FROM information_schema.columns WHERE table_schema = "
+		  . "'{$this->database}' AND table_name = '{$table}'");
 		
 		if($tblCols) {
 			while($columnData = $tblCols->fetch(PDO::FETCH_ASSOC)) {
@@ -112,109 +108,112 @@ class phpDataMapper_Adapter_Mysql extends phpDataMapper_Adapter_PDO
 	
 	
 	/**
-	 * Syntax for each column in CREATE TABLE command
-	 *
-	 * @param string $fieldName Field name
-	 * @param array $fieldInfo Array of field settings
-	 * @return string SQL syntax
-	 */
-	public function migrateSyntaxFieldCreate($fieldName, array $fieldInfo)
-	{
-		// Ensure field type exists
-		if(!isset($this->_fieldTypeMap[$fieldInfo['type']])) {
-			throw new phpDataMapper_Exception("Field type '" . $fieldInfo['type'] . "' not supported");
-		}
-		
-		$fieldInfo = array_merge($fieldInfo, $this->_fieldTypeMap[$fieldInfo['type']]);
-		
-		$syntax = "`" . $fieldName . "` " . $fieldInfo['adapter_type'];
-		// Column type and length
-		$syntax .= ($fieldInfo['length']) ? '(' . $fieldInfo['length'] . ')' : '';
-		// Unsigned
-		$syntax .= ($fieldInfo['unsigned']) ? ' unsigned' : '';
-		// Collate
-		$syntax .= ($fieldInfo['type'] == 'string' || $fieldInfo['type'] == 'text') ? ' COLLATE ' . $this->_collate : '';
-		// Nullable
-		$isNullable = true;
-		if($fieldInfo['required'] || !$fieldInfo['null']) {
-			$syntax .= ' NOT NULL';
-			$isNullable = false;
-		}
-		// Default value
-		if($fieldInfo['default'] === null && $isNullable) {
-			$syntax .= " DEFAULT NULL";
-		} elseif($fieldInfo['default'] !== null) {
-			$default = $fieldInfo['default'];
-			// If it's a boolean and $default is boolean then it should be 1 or 0
-			if ( is_bool($default) && $fieldInfo['type'] == "boolean" ) {
-				$default = $default ? 1 : 0;
-			}
-			$syntax .= " DEFAULT '" . $default . "'";
-		}
-		// Extra
-		$syntax .= ($fieldInfo['primary'] && $fieldInfo['serial']) ? ' AUTO_INCREMENT' : '';
-		return $syntax;
-	}
-	
-	
-	/**
 	 * Syntax for CREATE TABLE with given fields and column syntax
 	 *
 	 * @param string $table Table name
-	 * @param array $formattedFields Array of fields with all settings
-	 * @param array $columnsSyntax Array of SQL syntax of columns produced by 'migrateSyntaxFieldCreate' function
+	 * @param array $fields Array of field objects for this table.
 	 * @return string SQL syntax
 	 */
-	public function migrateSyntaxTableCreate($table, array $formattedFields, array $columnsSyntax)
+	protected function migrateSyntaxTableCreate($table, array $fields)
 	{
-		$syntax = "CREATE TABLE IF NOT EXISTS `" . $table . "` (\n";
+		$syntax = "CREATE TABLE IF NOT EXISTS `{$table}` (\n";
+		
 		// Columns
+		$columnsSyntax = array();
+		foreach ($fields as $field) {
+			$columnsSyntax[] = $this->migrateSyntaxColumnDefinition($field);
+		}
 		$syntax .= implode(",\n", $columnsSyntax);
 		
-		// Keys...
-		$ki = 0;
+		// Keys
 		$usedKeyNames = array();
-		$primaryKeys = array();
-		foreach($formattedFields as $fieldName => $fieldInfo) {
-			// Determine key field name (can't use same key name twice, so we have to append a number)
+		$primaryKey = array();
+		foreach ($fields as $field) {
+		  $fieldName = $field->name();
+		  
+		  // Determine key field name (can't use same key name twice, so we have to append a number)
 			$fieldKeyName = $fieldName;
-			while(in_array($fieldKeyName, $usedKeyNames)) {
-				$fieldKeyName = $fieldName . '_' . $ki++;
+			$keyIndex = 0;
+			while (in_array($fieldKeyName, $usedKeyNames)) {
+				$fieldKeyName = $fieldName . '_' . $keyIndex++;
 			}
+			
 			// Key type
-			if($fieldInfo['primary']) {
-			  $primaryKeys[] = $fieldName;
+			if ($field->option('primary')) {
+			  $primaryKey[] = $fieldName;
 			}
-			if($fieldInfo['unique']) {
-				$syntax .= "\n, UNIQUE KEY `" . $fieldKeyName . "` (`" . $fieldName . "`)";
+			
+			if ($field->option('unique')) {
+				$syntax .= "\n, UNIQUE KEY `{$fieldKeyName}` (`{$fieldName}`)";
 				$usedKeyNames[] = $fieldKeyName;
 			}
-			if($fieldInfo['index']) {
-				$syntax .= "\n, KEY `" . $fieldKeyName . "` (`" . $fieldName . "`)";
+			
+			if ($field->option('index')) {
+				$syntax .= "\n, KEY `{$fieldKeyName}` (`{$fieldName}`)";
 				$usedKeyNames[] = $fieldKeyName;
 			}
 		}
 		
-		$syntax .= "\n, PRIMARY KEY(" . implode(',', array_map(array($this, 'quoteName'), $primaryKeys)) . ")";
+		// Build primary key
+		$syntax .= "\n, PRIMARY KEY(" . implode(',', array_map(array($this, 'quoteName'), $primaryKey)) . ")";
 		
 		// Extra
-		$syntax .= "\n) ENGINE=" . $this->_engine . " DEFAULT CHARSET=" . $this->_charset . " COLLATE="
-		  . $this->_collate . ";";
+		$syntax .= "\n) ENGINE={$this->_engine} DEFAULT CHARSET={$this->_charset} COLLATE={$this->_collate};";
 		
 		return $syntax;
 	}
 	
 	
 	/**
-	 * Syntax for each column in CREATE TABLE command
+	 * Creates the column definition syntax portion for exactly one property.
 	 *
-	 * @param string $fieldName Field name
-	 * @param array $fieldInfo Array of field settings
+	 * @param phpDataMapper_Property $field Object representing the field.
 	 * @return string SQL syntax
 	 */
-	public function migrateSyntaxFieldUpdate($fieldName, array $fieldInfo, $add = false)
+	protected function migrateSyntaxColumnDefinition(phpDataMapper_Property $field)
 	{
-		return ( $add ? "ADD COLUMN " : "MODIFY " ) . $this->migrateSyntaxFieldCreate($fieldName, $fieldInfo);
+		// Ensure field type is supported
+		$fieldType = $field->type();
+		if(!isset($this->_fieldTypeMap[$fieldType])) {
+			throw new phpDataMapper_Exception("Field type '$fieldType' not supported by this adapter.");
+		}
+		
+		$adapterColumnType = $this->_fieldTypeMap[$fieldType];
+		
+		// Base definition
+		$syntax = "`" . $field->name() . "` " . $adapterColumnType;
+		
+		// Length
+		if ($field->hasOption('length')) {
+		  $syntax .= '(' . $field->option('length') . ')';
+		}
+		
+		// Unsigned
+		if ($field->hasOption('unsigned')) {
+		  $syntax .= ' UNSIGNED';
+		}
+		
+		// Collation
+		if (in_array($fieldType, $this->_collatedTypes)) {
+		  $syntax .= " COLLATE {$this->_collate}";
+		}
+		
+		// Nullable
+		if ($field->option('required')) {
+		  $syntax .= ' NOT NULL';
+		}
+		
+		// Default value
+		if ($field->option('default') !== NULL) {
+		  $syntax .= ' DEFAULT ' . $this->convertPHPValue($field->option('default'));
+		}
+		
+		// Auto increment
+		if ($field->option('primary') && $field->option('serial', false)) {
+		  $syntax .= ' AUTO_INCREMENT';
+		}
+		
+		return $syntax;
 	}
 	
 	
@@ -222,48 +221,131 @@ class phpDataMapper_Adapter_Mysql extends phpDataMapper_Adapter_PDO
 	 * Syntax for ALTER TABLE with given fields and column syntax
 	 *
 	 * @param string $table Table name
-	 * @param array $formattedFields Array of fields with all settings
-	 * @param array $columnsSyntax Array of SQL syntax of columns produced by 'migrateSyntaxFieldUpdate' function
+	 * @param array $fields Array of fields with all settings
 	 * @return string SQL syntax
 	 */
-	public function migrateSyntaxTableUpdate($table, array $formattedFields, array $columnsSyntax)
+	protected function migrateSyntaxTableUpdate($table, array $fields)
 	{
-		/*
-			ALTER TABLE `posts`
-			CHANGE `title` `title` VARCHAR( 255 ) CHARACTER SET utf8 COLLATE utf8_unicode_ci NOT NULL ,
-			CHANGE `status` `status` VARCHAR( 40 ) CHARACTER SET utf8 COLLATE utf8_unicode_ci NULL DEFAULT 'draft'
-		*/
-		$syntax = "ALTER TABLE `" . $table . "` \n";
-		// Columns
-		$syntax .= implode(",\n", $columnsSyntax);
+		$syntax = "ALTER TABLE `{$table}` \n";
 		
+		$syntax .= implode(",\n", $this->collectColumnsSyntaxForTableUpdate($table, $fields));
 		
-		// Keys...
-		$ki = 0;
-		$usedKeyNames = array();
-		foreach($formattedFields as $fieldName => $fieldInfo) {
-			// Determine key field name (can't use same key name twice, so we  have to append a number)
-			$fieldKeyName = $fieldName;
-			while(in_array($fieldKeyName, $usedKeyNames)) {
-				$fieldKeyName = $fieldName . '_' . $ki;
-			}
-			// Key type
-			if($fieldInfo['primary']) {
-				$syntax .= ",\n PRIMARY KEY(`" . $fieldName . "`)";
-			}
-			if($fieldInfo['unique']) {
-				$syntax .= ",\n UNIQUE KEY `" . $fieldKeyName . "` (`" . $fieldName . "`)";
-				$usedKeyNames[] = $fieldKeyName;
-				 // Example: ALTER TABLE `posts` ADD UNIQUE (`url`)
-			}
-			if($fieldInfo['index']) {
-				$syntax .= ",\n KEY `" . $fieldKeyName . "` (`" . $fieldName . "`)";
-				$usedKeyNames[] = $fieldKeyName;
-			}
-		}
+    // // Keys...
+    // $usedKeyNames = array();
+    // $primaryKey = array();
+    // foreach ($fields as $field) {
+    //   $fieldName = $field->name();     
+    //   
+    //  // Determine key field name (can't use same key name twice, so we  have to append a number)
+    //  $fieldKeyName = $fieldName;
+    //  $keyIndex = 0;
+    //  while (in_array($fieldKeyName, $usedKeyNames)) {
+    //    $fieldKeyName = $fieldName . '_' . $keyIndex++;
+    //  }
+    //  
+    //  // Key type
+    //  if($fieldInfo['primary']) {
+    //    $syntax .= ",\n PRIMARY KEY(`" . $fieldName . "`)";
+    //  }
+    //  if($fieldInfo['unique']) {
+    //    $syntax .= ",\n UNIQUE KEY `" . $fieldKeyName . "` (`" . $fieldName . "`)";
+    //    $usedKeyNames[] = $fieldKeyName;
+    //     // Example: ALTER TABLE `posts` ADD UNIQUE (`url`)
+    //  }
+    //  if($fieldInfo['index']) {
+    //    $syntax .= ",\n KEY `" . $fieldKeyName . "` (`" . $fieldName . "`)";
+    //    $usedKeyNames[] = $fieldKeyName;
+    //  }
+    // }
 		
 		// Extra
 		$syntax .= ";";
 		return $syntax;
+	}
+	
+	
+	/**
+	 * Compares the supplied list of fields with the actual column definitions for
+	 * the table. Returns an array with SQL statements that should be part of an
+	 * ALTER TABLE statement.
+	 *
+	 * @param string $table 
+	 * @param array $fields
+	 * @return array
+	 */
+	protected function collectColumnsSyntaxForTableUpdate($table, array $fields)
+	{
+	  $columnInfo = $this->getColumnInfoForTable($table);
+	  
+	  $fieldsToAdd = array();
+	  $fieldsToAlter = array();
+	  $validFieldNames = array();
+	  
+	  foreach ($fields as $field) {
+	    $fieldName = $field->name();
+	    if (!array_key_exists($fieldName, $columnInfo)) {
+	      $fieldsToAdd[] = $field;
+	    }
+	    else {
+	      if ($this->shouldUpdateColumnDefinition($columnInfo, $field)) {
+	        $fieldsToAlter[] = $field;
+	      }
+	    }
+	    
+	    $validFieldNames[] = $fieldName;
+	  }
+	  
+	  $fieldNamesToDrop = array_diff(array_keys($columnInfo), $validFieldNames);
+		
+		$columnsSyntax = array();
+		
+		foreach ($fieldNamesToDrop as $fieldName) {
+		  $columnsSyntax[] = "DROP COLUMN `{$fieldName}`";
+		}
+		foreach ($fieldsToAlter as $field) {
+		  $columnsSyntax[] = "MODIFY COLUMN " . $this->migrateSyntaxColumnDefinition($field);
+		}
+		foreach ($fieldsToAdd as $field) {
+		  $columnsSyntax[] = "ADD COLUMN " . $this->migrateSyntaxColumnDefinition($field);
+		}
+		
+		return $columnsSyntax;
+	}
+	
+	
+	/**
+	 * Determines whether the current column definition should be updated based on the property
+	 * instance supplied.
+	 *
+	 * @param array $columnInfo
+	 * @param phpDataMapper_Property $field
+	 * @return bool
+	 * @todo Implement
+	 */
+	protected function shouldUpdateColumnDefinition(array $columnInfo, phpDataMapper_Property $field)
+	{
+	  return true;
+	}
+	
+	
+	/**
+	 * Converts a PHP value for safe insertion into SQL syntax.
+	 *
+	 * @param mixed $value 
+	 * @return mixed
+	 */
+	protected function convertPHPValue($value)
+	{
+	  if ($value === NULL) {
+	    return 'NULL';
+	  }
+	  elseif (is_bool($value)) {
+	    return (int)$value;
+	  }
+	  elseif (is_int($value)) {
+	    return $value;
+	  }
+	  
+	  return $this->escape($value);
 	}
 }

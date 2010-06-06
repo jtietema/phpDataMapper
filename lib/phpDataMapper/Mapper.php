@@ -18,6 +18,19 @@ abstract class phpDataMapper_Mapper
 	protected $_adapter;
 	protected $_adapterRead;
 	
+	
+	/**
+	 * A list of aliases for field types. This array maps the aliases to the actual types.
+	 *
+	 * @var array
+	 */
+	protected $_fieldTypeAliases = array(
+	  'int'     => 'integer',
+	  'decimal' => 'float',
+	  'bool'    => 'boolean'
+	);
+	
+	
 	// Array of error messages and types
 	protected $_errors = array();
 	
@@ -154,56 +167,29 @@ abstract class phpDataMapper_Mapper
 			$getFields = create_function('$obj', 'return get_object_vars($obj);');
 			$fields = $getFields($this);
 			
-			// Default settings for all fields
-			$fieldDefaults = array(
-				'type' => 'string',
-				'default' => null,
-				'length' => null,
-				'required' => false,
-				'null' => true,
-				'unsigned' => false,
-				
-				'primary' => false,
-				'index' => false,
-				'unique' => false,
-				'serial' => false,
-				
-				'relation' => false
-				);
-			
-			// Type default overrides for specific field types
-			$fieldTypeDefaults = array(
-				'string' => array(
-					'length' => 255
-					),
-				'int' => array(
-					'length' => 10,
-					'unsigned' => true
-					)
-				);
-			
 			$returnFields = array();
 			foreach($fields as $fieldName => $fieldOpts) {
-				// Format field will full set of default options
-				if(isset($fieldOpts['type']) && isset($fieldTypeDefaults[$fieldOpts['type']])) {
-					// Include type defaults
-					$fieldOpts = array_merge($fieldDefaults, $fieldTypeDefaults[$fieldOpts['type']], $fieldOpts);
-				} else {
-					// Merge with defaults
-					$fieldOpts = array_merge($fieldDefaults, $fieldOpts);
-				}
-				
-				// Store primary key
-				if($fieldOpts['primary'] === true) {
-					$this->_primaryKey[] = $fieldName;
-				}
-				// Store relations (and remove them from the mix of regular fields)
-				if($fieldOpts['type'] == 'relation') {
+			  $fieldType = $fieldOpts['type'];
+			  unset($fieldOpts['type']);
+			  
+			  // Store relations (and remove them from the mix of regular fields)
+				if ($fieldType == 'relation') {
 					$this->_relations[$fieldName] = $fieldOpts;
 					continue; // skip, not a field
 				}
 				
-				$returnFields[$fieldName] = $fieldOpts;
+				while (isset($this->_fieldTypeAliases[$fieldType])) {
+				  $fieldType = $this->_fieldTypeAliases[$fieldType];
+				}
+				
+				$fieldClassName = 'phpDataMapper_Property_' . $fieldType;
+				$field = new $fieldClassName($fieldName, $fieldOpts);
+				
+				if ($field->option('primary') === true) {
+					$this->_primaryKey[] = $field;
+				}
+				
+				$returnFields[$fieldName] = $field;
 			}
 			$this->_fields = $returnFields;
 		}
@@ -235,14 +221,15 @@ abstract class phpDataMapper_Mapper
 		$pkFields = $this->primaryKeyFields();
 		$values = array();
 		foreach ($pkFields as $pkField) {
-		  $values[$pkField] = $entity->$pkField;
+		  $pkFieldName = $pkField->name();
+		  $values[$pkFieldName] = $entity->$pkFieldName;
 		}
 		return $values;
 	}
 	
 	
 	/**
-	 * Get the names of the primary key fields.
+	 * Get the objects respresenting the primary key fields.
 	 *
 	 * @return array
 	 */
@@ -252,6 +239,21 @@ abstract class phpDataMapper_Mapper
 	    $this->fields();
 	  }
 		return $this->_primaryKey;
+	}
+	
+	
+	/**
+	 * Returns the names of the primary key fields.
+	 *
+	 * @return array
+	 */
+	public function primaryKeyFieldNames()
+	{
+	  $names = array();
+	  foreach ($this->primaryKeyFields() as $field) {
+	    $names[] = $field->name();
+	  }
+	  return $names;
 	}
 	
 	
@@ -282,9 +284,10 @@ abstract class phpDataMapper_Mapper
 			$entity = new $this->_entityClass();
 			
 			// Set default values.
-			foreach ($this->fields() as $fieldName => $fieldInfo) {
-			  if ($fieldInfo['default'] !== NULL) {
-			    $entity->$fieldName = $fieldInfo['default'];
+			foreach ($this->fields() as $fieldName => $field) {
+			  $defaultValue = $field->option('default');
+			  if ($defaultValue !== NULL) {
+			    $entity->$fieldName = $defaultValue;
 			  }
 			}
 			
@@ -292,7 +295,7 @@ abstract class phpDataMapper_Mapper
 		
 		// Find record by primary key
 		} else {		  
-		  $pkFields = $this->primaryKeyFields();
+		  $pkFields = $this->primaryKeyFieldNames();
 		  if (count($pkFields) != count($pkValues)) {
 		    throw new InvalidArgumentException(__METHOD__ . " Expected " . count($pkFields) . " primary key values, got "
 		      . count($pkValues));
@@ -520,14 +523,19 @@ abstract class phpDataMapper_Mapper
 	}
 	
 	
+	/**
+	 * Returns the field object if and only if exactly one primary key field is found
+	 * that is also a serial. Otherwise, NULL is returned.
+	 *
+	 * @return mixed A phpDataMapper_Property instance or NULL.
+	 */
 	private function singleSerialPrimaryKeyField()
 	{
 	  $pkFields = $this->primaryKeyFields();
-	  $fieldInfo = $this->fields();
 	  if (count($pkFields) == 1) {
-	    $pkFieldInfo = $fieldInfo[$pkFields[0]];
-	    if ($pkFieldInfo['serial']) {
-	      return $pkFields[0];
+	    $pkField = $pkFields[0];
+	    if ($pkField->option('serial', false)) {
+	      return $pkField;
 	    }
 	  }
 	  
@@ -563,7 +571,8 @@ abstract class phpDataMapper_Mapper
 			// Update primary key on row
 		  $pkField = $this->singleSerialPrimaryKeyField();
 		  if ($pkField) {
-		    $entity->$pkField = $result;
+		    $pkFieldName = $pkField->name();
+		    $entity->$pkFieldName = $result;
 		  }
 			
 			// Load relations for this row so they can be used immediately
@@ -641,6 +650,11 @@ abstract class phpDataMapper_Mapper
 			);
 		}
 		
+		if (!is_array($conditions)) {
+		  throw new InvalidArgumentException(__METHOD__ . " Array or phpDataMapper_Entity object expected, got "
+		    . gettype($conditions));
+		}
+		
 		if ($this->beforeDelete($conditions) === false) {
 		  return false;
 		}
@@ -688,11 +702,11 @@ abstract class phpDataMapper_Mapper
 	  $this->beforeValidate($entity);
 	  
 		// Check validation rules on each feild
-		foreach($this->fields() as $field => $fieldAttrs) {
-			if(isset($fieldAttrs['required']) && true === $fieldAttrs['required']) {
+		foreach($this->fields() as $fieldName => $field) {
+			if($field->option('required') === true) {
 				// Required field
-				if($this->isEmpty($entity->$field)) {
-					$this->error($field, "Required field '" . $field . "' was left blank");
+				if($this->isEmpty($entity->$fieldName)) {
+					$this->error($field, "Required field '" . $fieldName . "' was left blank");
 				}
 			}
 		}

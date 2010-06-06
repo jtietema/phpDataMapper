@@ -37,7 +37,7 @@ class phpDataMapper {
 	 */
 	public static function debug()
 	{
-		echo "<p>Executed " . $this->queryCount() . " queries:</p>";
+		echo "<p>Executed " . self::queryCount() . " queries:</p>";
 		echo "<pre>\n";
 		print_r(self::$_queryLog);
 		echo "</pre>\n";

@@ -24,44 +24,44 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	protected $options;
 	
 	
-    /**
-    * @param mixed $host Host string or pre-existing PDO object
-	* @param string $database Optional if $host is PDO object
-    * @param string $username Optional if $host is PDO object
-    * @param string $password Optional if $host is PDO object
-    * @param array $options
-    * @return void
-    */
-    public function __construct($host, $database = null, $username = null, $password = null, array $options = array())
-    {
-    	if($host instanceof PDO) {
-    		$this->connection = $host;
-    	} else {
-			$this->host = $host;
-			$this->database = $database;
-			$this->username = $username;
-			$this->password = $password;
-			$this->options = $options;
-			
-			// Establish connection
-			try {
-				$this->connection = new PDO($this->dsn(), $this->username, $this->password, $this->options);
-				// Throw exceptions by default
-				$this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-			/*
-			} catch(PDOException $e) {
-				if($e->getCode() == 1049) {
-					// Database not found, try connection with no db specified
-					$this->connection = new PDO($this->getDsn(), $this->username, $this->password, $this->options);
-				} else {
-					throw new phpDataMapper_Exception($e->getMessage());
-				}
-			*/
-			} catch(Exception $e) {
+  /**
+  * @param mixed $host Host string or pre-existing PDO object
+  * @param string $database Optional if $host is PDO object
+  * @param string $username Optional if $host is PDO object
+  * @param string $password Optional if $host is PDO object
+  * @param array $options
+  * @return void
+  */
+  public function __construct($host, $database = null, $username = null, $password = null, array $options = array())
+  {
+  	if($host instanceof PDO) {
+  		$this->connection = $host;
+  	} else {
+		$this->host = $host;
+		$this->database = $database;
+		$this->username = $username;
+		$this->password = $password;
+		$this->options = $options;
+		
+		// Establish connection
+		try {
+			$this->connection = new PDO($this->dsn(), $this->username, $this->password, $this->options);
+			// Throw exceptions by default
+			$this->connection->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+		/*
+		} catch(PDOException $e) {
+			if($e->getCode() == 1049) {
+				// Database not found, try connection with no db specified
+				$this->connection = new PDO($this->getDsn(), $this->username, $this->password, $this->options);
+			} else {
 				throw new phpDataMapper_Exception($e->getMessage());
 			}
-    	}
-    }
+		*/
+		} catch(Exception $e) {
+			throw new phpDataMapper_Exception($e->getMessage());
+		}
+  	}
+  }
 	
 	
 	/**
@@ -80,10 +80,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	 * 
 	 * @return string
 	 */
-	public function dsn()
-	{
-		throw new BadMethodCallException("Error: Method " . __FUNCTION__ . " must be defined in the adapter");
-	}
+	abstract public function dsn();
 	
 	
 	/**
@@ -131,20 +128,15 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	
 	
 	/**
-	 * Migrate table structure changes to database
-	 * @param String $table Table name
-	 * @param Array $fields Fields and their attributes as defined in the mapper
+	 * Migrate table structure changes to database. Creates the table if it doesn't already exist,
+	 * updates the schema otherwise.
+	 * 
+	 * @param string $table Table name
+	 * @param array $fields Fields and their representing objects as defined in the mapper
 	 */
 	public function migrate($table, array $fields)
 	{
-		// Get current fields for table
-		$tableExists = false;
-		$tableColumns = $this->getColumnsForTable($table, $this->database);
-		
-		if($tableColumns) {
-			$tableExists = true;
-		}
-		if($tableExists) {
+		if($this->tableExists($table)) {
 			// Update table
 			$this->migrateTableUpdate($table, $fields);
 		} else {
@@ -154,86 +146,55 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	}
 	
 	
+	abstract protected function tableExists($table);
+	
+	
 	/**
-	 * Execute a CREATE TABLE command
+	 * Creates a table.
+	 *
+	 * @param string $table 
+	 * @param array $fields The list of field instances.
+	 * @return bool
 	 */
-	public function migrateTableCreate($table, array $formattedFields)
-	{
-		/*
-			STEPS:
-			* Use fields to get column syntax
-			* Use column syntax array to get table syntax
-			* Run SQL
-		*/
-		
-		// Prepare fields and get syntax for each
-		$columnsSyntax = array();
-		foreach($formattedFields as $fieldName => $fieldInfo) {
-			$columnsSyntax[$fieldName] = $this->migrateSyntaxFieldCreate($fieldName, $fieldInfo);
-		}
-		
+	public function migrateTableCreate($table, array $fields)
+	{		
 		// Get syntax for table with fields/columns
-		$sql = $this->migrateSyntaxTableCreate($table, $formattedFields, $columnsSyntax);
+		$sql = $this->migrateSyntaxTableCreate($table, $fields);
 		
 		// Add query to log
 		phpDataMapper::logQuery($sql);
 		
 		$this->connection()->exec($sql);
+		
 		return true;
 	}
+	
+	
+	abstract protected function migrateSyntaxTableCreate($table, array $fields);
 	
 	
 	/**
-	 * Execute an ALTER/UPDATE TABLE command
+	 * Updates a table schema based on a model definition (i.e. the list of a model's properties).
+	 *
+	 * @param string $table 
+	 * @param array $fields 
+	 * @return string
 	 */
-	public function migrateTableUpdate($table, array $formattedFields)
-	{
-		/*
-			STEPS:
-			* Use fields to get column syntax
-			* Use column syntax array to get table syntax
-			* Run SQL
-		*/
+	public function migrateTableUpdate($table, array $fields)
+	{		
+		$sql = $this->migrateSyntaxTableUpdate($table, $fields);
 		
-		// Prepare fields and get syntax for each
-		$tableColumns = $this->getColumnsForTable($table, $this->database);
-		$updateFormattedFields = array();
-		foreach($tableColumns as $fieldName => $columnInfo) {
-			if(isset($formattedFields[$fieldName])) {
-				// TODO: Need to do a more exact comparison and make this non-mysql specific
-				if ( 
-						$this->_fieldTypeMap[$formattedFields[$fieldName]['type']] != $columnInfo['DATA_TYPE'] ||
-						$formattedFields[$fieldName]['default'] !== $columnInfo['COLUMN_DEFAULT']
-					) {
-					$updateFormattedFields[$fieldName] = $formattedFields[$fieldName];
-				}
-				
-				unset($formattedFields[$fieldName]);
-			}
-		}
+		// Add query to log
+		phpDataMapper::logQuery($sql);
 		
-		$columnsSyntax = array();
-		// Update fields whose options have changed
-		foreach($updateFormattedFields as $fieldName => $fieldInfo) {
-			$columnsSyntax[$fieldName] = $this->migrateSyntaxFieldUpdate($fieldName, $fieldInfo, false);
-		}
-		// Add fields that are missing from current ones
-		foreach($formattedFields as $fieldName => $fieldInfo) {
-			$columnsSyntax[$fieldName] = $this->migrateSyntaxFieldUpdate($fieldName, $fieldInfo, true);
-		}
+		// Run SQL
+		$this->connection()->exec($sql);
 		
-		// Get syntax for table with fields/columns
-		if ( !empty($columnsSyntax) ) {
-			$sql = $this->migrateSyntaxTableUpdate($table, $formattedFields, $columnsSyntax);
-			
-			// Add query to log
-			phpDataMapper::logQuery($sql);
-			
-			// Run SQL
-			$this->connection()->exec($sql);
-		}
 		return true;
 	}
+	
+	
+	abstract protected function migrateSyntaxTableUpdate($table, array $fields);
 	
 	
 	/**
@@ -474,6 +435,13 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	}
 	
 	
+	/**
+	 * Quotes an SQL identifier (such as a field name) in backticks so we don't get errors
+	 * when we use reserved words as identifiers.
+	 *
+	 * @param string $name 
+	 * @return string
+	 */
 	public function quoteName($name)
 	{
 	  return "`$name`";
