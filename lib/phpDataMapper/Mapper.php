@@ -536,7 +536,7 @@ abstract class phpDataMapper_Mapper
 		}
 		
 		if(!($entity instanceof phpDataMapper_Entity)) {
-			throw new $this->_exceptionClass(__METHOD__ . " first argument must be entity object or array");
+			throw new $this->_exceptionClass("First argument must be either an entity object or an array.");
 		}
 		
 		// Run validation

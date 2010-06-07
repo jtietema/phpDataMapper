@@ -15,7 +15,7 @@ abstract class phpDataMapper_Property
     $illegalKeys = array_keys(array_diff_key($options, $fieldDefaults));
     
     if (count($illegalKeys) > 0) {
-      throw new phpDataMapper_Exception(__METHOD__ . " Unsupported options were set: " . implode(', ', $illegalKeys));
+      throw new phpDataMapper_Exception("Unsupported options were set: " . implode(', ', $illegalKeys));
     }
     
     $this->_options = array_merge($fieldDefaults, $options);
@@ -103,7 +103,7 @@ abstract class phpDataMapper_Property
     
     if (!$this->hasOption($key)) {
       if (!isset($defaultValue)) {
-        throw new InvalidArgumentException(__METHOD__ . " Requested option '$key' does not exist.");
+        throw new InvalidArgumentException("Requested option '$key' does not exist.");
       }
       
       return $defaultValue;
