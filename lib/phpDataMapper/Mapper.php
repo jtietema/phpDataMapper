@@ -506,6 +506,23 @@ abstract class phpDataMapper_Mapper
 	
 	
 	/**
+	 * Convenience method to create a new entity, set its data and save it to the database.
+	 *
+	 * @param array $data Data as key/value pairs.
+	 * @return mixed Either the newly created {@link phpDataMapper_Entity} instance, or false if
+	 *               the entity couldn't be saved.
+	 */
+	public function create(array $data)
+	{
+	  $entity = $this->get()->data($data);
+	  if ($this->save($entity)) {
+	    return $entity;
+	  }
+	  return false;
+	}
+	
+	
+	/**
 	 * Save record
 	 * Will update if primary key found, insert if not
 	 * Performs validation automatically before saving record

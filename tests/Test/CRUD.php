@@ -136,4 +136,17 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	  
 	  $this->assertFalse($mapper->first(array('name' => 'Chuck')));
 	}
+	
+	public function testCreateConvenienceMethod()
+	{
+	  $mapper = $this->blogMapper;
+	  
+	  $title = time();
+	  
+	  $entity = $mapper->create(array('title' => $title, 'body' => 'the body'));
+	  $this->assertType('phpDataMapper_Entity', $entity);
+	  
+	  $entity2 = $mapper->first(array('title' => $title));
+	  $this->assertType('phpDataMapper_Entity', $entity2);
+	}
 }
