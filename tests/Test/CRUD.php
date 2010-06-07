@@ -132,6 +132,7 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	  $dog2->name = 'Chuck'; // Check defined in hook to prevent this name from being used.
 	  $result = $mapper->save($dog2);
 	  $this->assertFalse($result);
+	  $this->assertNotEquals('Chuck_123', $dog->silly_property);
 	  
 	  $this->assertFalse($mapper->first(array('name' => 'Chuck')));
 	}
