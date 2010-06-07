@@ -86,8 +86,12 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	
 	protected function tableExists($table)
 	{
-	  $result = $this->connection()->query("SHOW TABLES FROM `{$this->database}` LIKE '{$table}'")->fetchAll();
-	  return count($result) > 0;
+	  $sql = "SHOW TABLES FROM `{$this->database}` LIKE '{$table}'";
+	  $stmt = $this->connection()->query($sql);
+	  
+	  phpDataMapper::logQuery($sql);
+	  
+	  return count($stmt->fetchAll()) > 0;
 	}
 	
 	
@@ -97,11 +101,15 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	 * @param string $table Table name
 	 * @return array A hash, where the keys are column names and the values are hashes of MySQL column info.
 	 */
-	protected function getColumnInfoForTable($table)
+	protected function columnInfoForTable($table)
 	{
+	  $sql = "SELECT * FROM information_schema.columns WHERE table_schema = '{$this->database}'"
+	    . " AND table_name = '{$table}'";
+	  
 		$tableColumns = array();
-		$tblCols = $this->connection()->query("SELECT * FROM information_schema.columns WHERE table_schema = "
-		  . "'{$this->database}' AND table_name = '{$table}'");
+		$tblCols = $this->connection()->query($sql);
+		
+		phpDataMapper::logQuery($sql);
 		
 		if($tblCols) {
 			while($columnData = $tblCols->fetch(PDO::FETCH_ASSOC)) {
@@ -111,6 +119,23 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 		} else {
 			return false;
 		}
+	}
+	
+	
+	/**
+	 * Introspects the database to get current index information for the specified table.
+	 *
+	 * @param string $table 
+	 * @return array An array, where the values are hashes of MySQL index info.
+	 */
+	protected function indexInfoForTable($table)
+	{
+	  $sql = "SHOW INDEX FROM `{$table}`";
+	  $stmt = $this->connection()->query($sql);
+	  
+	  phpDataMapper::logQuery($sql);
+	  
+	  return $stmt ? $stmt->fetchAll() : false;
 	}
 	
 	
@@ -232,50 +257,18 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	 * @return mixed SQL syntax as string, or false if there is nothing to update.
 	 */
 	protected function migrateSyntaxTableUpdate($table, array $fields)
-	{
-	  $columnInfo = $this->getColumnInfoForTable($table);
-	  
-		$syntax = "ALTER TABLE `{$table}` \n";
+	{		
+		$lines = array_merge(
+		  $this->collectColumnsSyntaxForTableUpdate($table, $fields),
+		  $this->collectIndicesSyntaxForTableUpdate($table, $fields)
+		);
 		
-		$columnsSyntax = $this->collectColumnsSyntaxForTableUpdate($table, $fields, $columnInfo);
-		if (count($columnsSyntax) > 0) {
-		  $syntax .= implode(",\n", $columnsSyntax);
-		}
-		else {
-		  return false;
-		}
-		
-    // // Keys...
-    // $usedKeyNames = array();
-    // $primaryKey = array();
-    // foreach ($fields as $field) {
-    //   $fieldName = $field->name();     
-    //   
-    //  // Determine key field name (can't use same key name twice, so we  have to append a number)
-    //  $fieldKeyName = $fieldName;
-    //  $keyIndex = 0;
-    //  while (in_array($fieldKeyName, $usedKeyNames)) {
-    //    $fieldKeyName = $fieldName . '_' . $keyIndex++;
-    //  }
-    //  
-    //  // Key type
-    //  if($fieldInfo['primary']) {
-    //    $syntax .= ",\n PRIMARY KEY(`" . $fieldName . "`)";
-    //  }
-    //  if($fieldInfo['unique']) {
-    //    $syntax .= ",\n UNIQUE KEY `" . $fieldKeyName . "` (`" . $fieldName . "`)";
-    //    $usedKeyNames[] = $fieldKeyName;
-    //     // Example: ALTER TABLE `posts` ADD UNIQUE (`url`)
-    //  }
-    //  if($fieldInfo['index']) {
-    //    $syntax .= ",\n KEY `" . $fieldKeyName . "` (`" . $fieldName . "`)";
-    //    $usedKeyNames[] = $fieldKeyName;
-    //  }
-    // }
-		
-		// Extra
-		$syntax .= ";";
-		return $syntax;
+    if (count($lines) == 0) {
+      // Nothing to update
+      return false;
+    }
+    
+    return "ALTER TABLE `{$table}`\n" . implode(",\n", $lines) . ";";
 	}
 	
 	
@@ -286,11 +279,12 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	 *
 	 * @param string $table 
 	 * @param array $fields
-	 * @param array $columnInfo
 	 * @return array
 	 */
-	protected function collectColumnsSyntaxForTableUpdate($table, array $fields, array $columnInfo)
-	{	  
+	protected function collectColumnsSyntaxForTableUpdate($table, array $fields)
+	{
+	  $columnInfo = $this->columnInfoForTable($table);
+	  
 	  $fieldsToAdd = array();
 	  $fieldsToAlter = array();
 	  $validFieldNames = array();
@@ -322,6 +316,109 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 		}
 		
 		return $columnsSyntax;
+	}
+	
+	
+	/**
+	 * Collects SQL syntax lines to update the database schema to reflect current mapper
+	 * definition in an ALTER TABLE statement.
+	 *
+	 * @param string $table Table name
+	 * @param array $fields
+	 * @return array
+	 * @todo Support composite (named) indexes
+	 */
+	protected function collectIndicesSyntaxForTableUpdate($table, array $fields)
+	{
+	  $lines = array();
+	  
+	  $indexInfo = $this->indexInfoForTable($table);
+	  
+	  // Collect expected index information
+		$primaryKeyFields = array();
+		$uniqueIndexFields = array();
+		$indexFields = array();
+		foreach ($fields as $field) {
+		  $fieldName = $field->name();
+		  
+		  if ($field->option('primary')) {
+		    $primaryKeyFields[] = $fieldName;
+		  }
+		  
+		  if ($field->option('unique')) {
+		    $uniqueIndexFields[] = $fieldName;
+		  }
+		  
+		  if ($field->option('index')) {
+		    $indexFields[] = $fieldName;
+		  }
+		}
+	  
+	  // Collect actual index information
+		$primaryKeyColumns = array();
+		$uniqueIndexColumns = array();
+		$indexColumns = array();
+		foreach ($indexInfo as $info) {
+		  if ($info['Key_name'] == 'PRIMARY') {
+		    $primaryKeyColumns[] = $info['Column_name'];
+		  }
+		  elseif ($info['Non_unique'] == 0) {
+		    // Unique index
+		    $uniqueIndexColumns[$info['Key_name']][] = $info['Column_name'];
+		  }
+		  else {
+		    // Regular index
+		    $indexColumns[$info['Key_name']][] = $info['Column_name'];
+		  }
+		}
+		
+		// Update primary key?
+		$isEqualPK = count($primaryKeyColumns) == count($primaryKeyFields) &&
+		  count(array_diff($primaryKeyColumns, $primaryKeyFields)) == 0;
+		if (!$isEqualPK) {
+		  $lines[] = "DROP PRIMARY KEY";
+		  $lines[] = "ADD PRIMARY KEY(" . implode(',', array_map(array($this, 'quoteName'), $primaryKeyFields)) . ")";
+		}
+		
+		// Indices
+		$usedIndexNames = array();
+		
+		$indexData = array(
+		  array($uniqueIndexColumns, $uniqueIndexFields, true),
+		  array($indexColumns, $indexFields, false)
+		);
+		foreach ($indexData as $data) {
+		  $currentColumns = $data[0];
+		  $currentFields = $data[1];
+		  $unique = $data[2];
+		  
+		  $existingIndexColumns = array();
+  		foreach ($currentColumns as $indexName => $columnNames) {
+  		  if (count($columnNames) > 1 || !in_array($columnNames[0], $currentFields)) {
+  		    // Drop all composite key indices for now. Support will follow soon.
+  		    $lines[] = "DROP INDEX `{$indexName}`";
+  		  }
+  		  else {
+  		    $usedIndexNames[] = $indexName;
+  		    $existingIndexColumns[] = $columnNames[0];
+  		  }
+  		}
+  		$indicesToAdd = array_diff($currentFields, $existingIndexColumns);
+
+  		foreach ($indicesToAdd as $columnName) {
+  		  $indexName = $columnName;
+  		  $indexIndex = 0;
+  		  while (in_array($indexName, $usedIndexNames)) {
+  		    $indexName = $columnName . '_' . $indexIndex++;
+  		  }
+
+  		  $usedIndexNames[] = $indexName;
+
+  		  $lines[] = "ADD " . ($unique ? 'UNIQUE ' : '') . "INDEX `{$indexName}`(`{$columnName}`)";
+  		}
+		}
+		
+		return $lines;
 	}
 	
 	
@@ -371,6 +468,12 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	  // Nullable
 	  $expectedNullable = $field->option('required') || $field->option('primary') ? 'NO' : 'YES';
 	  if ($expectedNullable != $columnInfo['IS_NULLABLE']) {
+	    return true;
+	  }
+	  
+	  // Auto increment
+	  $isSerialInDB = preg_match('/\bauto_increment\b/', $columnInfo['EXTRA']);
+	  if ($isSerialInDB != $field->option('serial', false)) {
 	    return true;
 	  }
 	  

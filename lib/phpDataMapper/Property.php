@@ -12,7 +12,7 @@ abstract class phpDataMapper_Property
     $this->_name = $name;
     
     $fieldDefaults = $this->fieldDefaults();
-    $illegalKeys = array_diff_key($options, $fieldDefaults);
+    $illegalKeys = array_keys(array_diff_key($options, $fieldDefaults));
     
     if (count($illegalKeys) > 0) {
       throw new phpDataMapper_Exception(__METHOD__ . " Unsupported options were set: " . implode(', ', $illegalKeys));
@@ -42,9 +42,14 @@ abstract class phpDataMapper_Property
    *
    * @return void
    * @throws phpDataMapper_Exception
+   * @todo Support composite (named) indexes
    */
   protected function validateOptions()
   {
+    $indexOptionValues = array($this->option('unique'), $this->option('index'), $this->option('primary'));
+    if (count(array_filter($indexOptionValues)) > 1) {
+      throw new phpDataMapper_Exception("Only one index type can be defined per property at once.");
+    }
   }
   
   
