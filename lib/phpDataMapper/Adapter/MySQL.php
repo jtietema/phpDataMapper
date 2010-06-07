@@ -20,11 +20,11 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	
 	
 	/**
-	 * Maps phpDataMapper property types to actual adapter types.
+	 * Maps phpDataMapper property types to actual database column types.
 	 *
 	 * @var array
 	 */
-	protected $_fieldTypeMap = array(
+	protected $_propertyColumnTypeMap = array(
 	  'boolean'   => 'BOOL',
 	  'date'      => 'DATE',
 	  'datetime'  => 'DATETIME',
@@ -35,6 +35,12 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	);
 	
 	
+	/**
+	 * Lists database defaults of lengths for certain column types. We can use
+	 * this to see if a column definition needs to be updated during migration.
+	 *
+	 * @var array
+	 */
 	protected $_defaultLengths = array(
 	  'BOOL'      => 1,
 	  'INT'       => 11,
@@ -47,7 +53,7 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	 *
 	 * @var array
 	 */
-	protected $_collatedTypes = array('string', 'text');
+	protected $_collatedTypes = array('VARCHAR', 'TEXT');
 	
 	
 	/**
@@ -84,6 +90,9 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	}
 	
 	
+  /**
+   * @see phpDataMapper_Adapter_PDO::tableExists()
+   */
 	protected function tableExists($table)
 	{
 	  $sql = "SHOW TABLES FROM `{$this->database}` LIKE '{$table}'";
@@ -125,7 +134,7 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	/**
 	 * Introspects the database to get current index information for the specified table.
 	 *
-	 * @param string $table 
+	 * @param string $table The name of the table to inspect.
 	 * @return array An array, where the values are hashes of MySQL index info.
 	 */
 	protected function indexInfoForTable($table)
@@ -140,127 +149,113 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	
 	
 	/**
-	 * Syntax for CREATE TABLE with given fields and column syntax
-	 *
-	 * @param string $table Table name
-	 * @param array $fields Array of field objects for this table.
-	 * @return string SQL syntax
+	 * @see phpDataMapper_Adapter_PDO::migrateSyntaxTableCreate()
 	 */
-	protected function migrateSyntaxTableCreate($table, array $fields)
+	protected function migrateSyntaxTableCreate($table, array $properties)
 	{
-		$syntax = "CREATE TABLE IF NOT EXISTS `{$table}` (\n";
-		
-		// Columns
-		$columnsSyntax = array();
-		foreach ($fields as $field) {
-			$columnsSyntax[] = $this->migrateSyntaxColumnDefinition($field);
-		}
-		$syntax .= implode(",\n", $columnsSyntax);
-		
-		// Keys
-		$usedKeyNames = array();
+		$lines = array();
+		$usedIndexNames = array();
 		$primaryKey = array();
-		foreach ($fields as $field) {
-		  $fieldName = $field->name();
+		foreach ($properties as $property) {
+		  $lines[] = $this->migrateSyntaxColumnDefinition($property);
+		  
+		  $propertyName = $property->name();
 		  
 		  // Determine key field name (can't use same key name twice, so we have to append a number)
-			$fieldKeyName = $fieldName;
+			$keyName = $propertyName;
 			$keyIndex = 0;
-			while (in_array($fieldKeyName, $usedKeyNames)) {
-				$fieldKeyName = $fieldName . '_' . $keyIndex++;
+			while (in_array($keyName, $usedIndexNames)) {
+				$keyName = $propertyName . '_' . $keyIndex++;
 			}
 			
 			// Key type
-			if ($field->option('primary')) {
-			  $primaryKey[] = $fieldName;
+			if ($property->option('primary')) {
+			  $primaryKey[] = $propertyName;
 			}
 			
-			if ($field->option('unique')) {
-				$syntax .= "\n, UNIQUE KEY `{$fieldKeyName}` (`{$fieldName}`)";
-				$usedKeyNames[] = $fieldKeyName;
+			if ($property->option('unique')) {
+				$lines[] = "UNIQUE KEY `{$fieldKeyName}` (`{$fieldName}`)";
+				$usedIndexNames[] = $keyName;
 			}
 			
-			if ($field->option('index')) {
-				$syntax .= "\n, KEY `{$fieldKeyName}` (`{$fieldName}`)";
-				$usedKeyNames[] = $fieldKeyName;
+			if ($property->option('index')) {
+				$lines[] = "KEY `{$fieldKeyName}` (`{$fieldName}`)";
+				$usedIndexNames[] = $keyName;
 			}
 		}
 		
 		// Build primary key
-		$syntax .= "\n, PRIMARY KEY(" . implode(',', array_map(array($this, 'quoteName'), $primaryKey)) . ")";
+		$lines[] = "PRIMARY KEY(" . implode(',', array_map(array($this, 'quoteName'), $primaryKey)) . ")";
 		
-		// Extra
-		$syntax .= "\n) ENGINE={$this->_engine} DEFAULT CHARSET={$this->_charset} COLLATE={$this->_collate};";
+		$sql = "CREATE TABLE IF NOT EXISTS `{$table}` (\n";
+		$sql .= implode(",\n", $lines);
+		$sql .= "\n) ENGINE={$this->_engine} DEFAULT CHARSET={$this->_charset} COLLATE={$this->_collate};";
 		
-		return $syntax;
+		return $sql;
 	}
 	
 	
 	/**
 	 * Creates the column definition syntax portion for exactly one property.
 	 *
-	 * @param phpDataMapper_Property $field Object representing the field.
-	 * @return string SQL syntax
+	 * @param phpDataMapper_Property $property
+	 * @return string SQL column definition.
 	 */
-	protected function migrateSyntaxColumnDefinition(phpDataMapper_Property $field)
+	protected function migrateSyntaxColumnDefinition(phpDataMapper_Property $property)
 	{
 		// Ensure field type is supported
-		$fieldType = $field->type();
-		if(!isset($this->_fieldTypeMap[$fieldType])) {
-			throw new phpDataMapper_Exception("Field type '$fieldType' not supported by this adapter.");
+		$propertyType = $property->type();
+		if(!isset($this->_propertyColumnTypeMap[$propertyType])) {
+			throw new phpDataMapper_Exception("Property type '$propertyType' not supported by this adapter.");
 		}
 		
-		$adapterColumnType = $this->_fieldTypeMap[$fieldType];
+		$columnType = $this->_propertyColumnTypeMap[$propertyType];
 		
 		// Base definition
-		$syntax = "`" . $field->name() . "` " . $adapterColumnType;
+		$sql = "`" . $property->name() . "` " . $columnType;
 		
 		// Length
-		if ($field->hasOption('length')) {
-		  $syntax .= '(' . $field->option('length') . ')';
+		if ($property->hasOption('length')) {
+		  $sql .= '(' . $property->option('length') . ')';
 		}
 		
 		// Unsigned
-		if ($field->hasOption('unsigned')) {
-		  $syntax .= ' UNSIGNED';
+		if ($property->hasOption('unsigned')) {
+		  $sql .= ' UNSIGNED';
 		}
 		
 		// Collation
-		if (in_array($fieldType, $this->_collatedTypes)) {
-		  $syntax .= " COLLATE {$this->_collate}";
+		if (in_array($columnType, $this->_collatedTypes)) {
+		  $sql .= " COLLATE {$this->_collate}";
 		}
 		
 		// Nullable
-		if ($field->option('required')) {
-		  $syntax .= ' NOT NULL';
+		if ($property->option('required')) {
+		  $sql .= ' NOT NULL';
 		}
 		
 		// Default value
-		if ($field->option('default') !== NULL) {
-		  $syntax .= ' DEFAULT ' . $this->convertPHPValue($field->option('default'));
+		if ($property->option('default') !== NULL) {
+		  $sql .= ' DEFAULT ' . $this->convertPHPValue($property->option('default'));
 		}
 		
 		// Auto increment
-		if ($field->option('primary') && $field->option('serial', false)) {
-		  $syntax .= ' AUTO_INCREMENT';
+		if ($property->option('primary') && $property->option('serial', false)) {
+		  $sql .= ' AUTO_INCREMENT';
 		}
 		
-		return $syntax;
+		return $sql;
 	}
 	
 	
 	/**
-	 * Syntax for ALTER TABLE with given fields and column syntax
-	 *
-	 * @param string $table Table name
-	 * @param array $fields Array of fields with all settings
-	 * @return mixed SQL syntax as string, or false if there is nothing to update.
+	 * @see phpDataMapper_Adapter_PDO::migrateSyntaxTableUpdate()
 	 */
-	protected function migrateSyntaxTableUpdate($table, array $fields)
+	protected function migrateSyntaxTableUpdate($table, array $properties)
 	{		
 		$lines = array_merge(
-		  $this->collectColumnsSyntaxForTableUpdate($table, $fields),
-		  $this->collectIndicesSyntaxForTableUpdate($table, $fields)
+		  $this->collectColumnsSyntaxForTableUpdate($table, $properties),
+		  $this->collectIndicesSyntaxForTableUpdate($table, $properties)
 		);
 		
     if (count($lines) == 0) {
@@ -273,49 +268,48 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	
 	
 	/**
-	 * Compares the supplied list of fields with the actual column definitions for
-	 * the table. Returns an array with SQL statements that should be part of an
-	 * ALTER TABLE statement.
+	 * Compares the supplied list of properties with the actual column definitions for
+	 * the table. Returns a list of SQL statements (ADD/MODIFY/DROP COLUMN) that should
+	 * be part of an ALTER TABLE statement.
 	 *
-	 * @param string $table 
-	 * @param array $fields
+	 * @param string $table The name of the table to inspect.
+	 * @param array $properties List of {@link phpDataMapper_Property} instances representing the model definition.
 	 * @return array
 	 */
-	protected function collectColumnsSyntaxForTableUpdate($table, array $fields)
+	protected function collectColumnsSyntaxForTableUpdate($table, array $properties)
 	{
 	  $columnInfo = $this->columnInfoForTable($table);
 	  
-	  $fieldsToAdd = array();
-	  $fieldsToAlter = array();
-	  $validFieldNames = array();
+	  $propertiesToAdd = array();
+	  $propertiesToAlter = array();
+	  $propertyNames = array();
 	  
-	  foreach ($fields as $field) {
-	    $fieldName = $field->name();
-	    if (!array_key_exists($fieldName, $columnInfo)) {
-	      $fieldsToAdd[] = $field;
+	  foreach ($properties as $property) {
+	    $propertyName = $property->name();
+	    if (!array_key_exists($propertyName, $columnInfo)) {
+	      $propertiesToAdd[] = $property;
 	    }
-	    elseif ($this->shouldUpdateColumnDefinition($columnInfo[$fieldName], $field)) {	      
-        $fieldsToAlter[] = $field;
+	    elseif ($this->shouldUpdateColumnDefinition($columnInfo[$propertyName], $property)) {	      
+        $propertiesToAlter[] = $property;
 	    }
 	    
-	    $validFieldNames[] = $fieldName;
+	    $propertyNames[] = $propertyName;
 	  }
 	  
-	  $fieldNamesToDrop = array_diff(array_keys($columnInfo), $validFieldNames);
+	  $propertyNamesToDrop = array_diff(array_keys($columnInfo), $propertyNames);
 		
-		$columnsSyntax = array();
+		$lines = array();
+		foreach ($propertyNamesToDrop as $propertyName) {
+		  $lines[] = "DROP COLUMN `{$propertyName}`";
+		}
+		foreach ($propertiesToAlter as $property) {
+		  $lines[] = "MODIFY COLUMN " . $this->migrateSyntaxColumnDefinition($property);
+		}
+		foreach ($propertiesToAdd as $property) {
+		  $lines[] = "ADD COLUMN " . $this->migrateSyntaxColumnDefinition($property);
+		}
 		
-		foreach ($fieldNamesToDrop as $fieldName) {
-		  $columnsSyntax[] = "DROP COLUMN `{$fieldName}`";
-		}
-		foreach ($fieldsToAlter as $field) {
-		  $columnsSyntax[] = "MODIFY COLUMN " . $this->migrateSyntaxColumnDefinition($field);
-		}
-		foreach ($fieldsToAdd as $field) {
-		  $columnsSyntax[] = "ADD COLUMN " . $this->migrateSyntaxColumnDefinition($field);
-		}
-		
-		return $columnsSyntax;
+		return $lines;
 	}
 	
 	
@@ -323,87 +317,88 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	 * Collects SQL syntax lines to update the database schema to reflect current mapper
 	 * definition in an ALTER TABLE statement.
 	 *
-	 * @param string $table Table name
-	 * @param array $fields
+	 * @param string $table The name of the table to inspect.
+	 * @param array $properties List of {@link phpDataMapper_Property} instances representing the model definition.
 	 * @return array
 	 * @todo Support composite (named) indexes
 	 */
-	protected function collectIndicesSyntaxForTableUpdate($table, array $fields)
+	protected function collectIndicesSyntaxForTableUpdate($table, array $properties)
 	{
 	  $lines = array();
 	  
 	  $indexInfo = $this->indexInfoForTable($table);
 	  
 	  // Collect expected index information
-		$primaryKeyFields = array();
-		$uniqueIndexFields = array();
-		$indexFields = array();
-		foreach ($fields as $field) {
-		  $fieldName = $field->name();
+		$primaryKeyPropertyNames = array();
+		$uniqueIndexPropertyNames = array();
+		$indexPropertyNames = array();
+		foreach ($properties as $property) {
+		  $propertyName = $property->name();
 		  
-		  if ($field->option('primary')) {
-		    $primaryKeyFields[] = $fieldName;
+		  if ($property->option('primary')) {
+		    $primaryKeyPropertyNames[] = $propertyName;
 		  }
 		  
-		  if ($field->option('unique')) {
-		    $uniqueIndexFields[] = $fieldName;
+		  if ($property->option('unique')) {
+		    $uniqueIndexPropertyNames[] = $propertyName;
 		  }
 		  
-		  if ($field->option('index')) {
-		    $indexFields[] = $fieldName;
+		  if ($property->option('index')) {
+		    $indexPropertyNames[] = $propertyName;
 		  }
 		}
 	  
 	  // Collect actual index information
-		$primaryKeyColumns = array();
-		$uniqueIndexColumns = array();
-		$indexColumns = array();
+		$primaryKeyColumnNames = array();
+		$uniqueIndexColumnNames = array();
+		$indexColumnNames = array();
 		foreach ($indexInfo as $info) {
 		  if ($info['Key_name'] == 'PRIMARY') {
-		    $primaryKeyColumns[] = $info['Column_name'];
+		    $primaryKeyColumnNames[] = $info['Column_name'];
 		  }
 		  elseif ($info['Non_unique'] == 0) {
 		    // Unique index
-		    $uniqueIndexColumns[$info['Key_name']][] = $info['Column_name'];
+		    $uniqueIndexColumnNames[$info['Key_name']][] = $info['Column_name'];
 		  }
 		  else {
 		    // Regular index
-		    $indexColumns[$info['Key_name']][] = $info['Column_name'];
+		    $indexColumnNames[$info['Key_name']][] = $info['Column_name'];
 		  }
 		}
 		
 		// Update primary key?
-		$isEqualPK = count($primaryKeyColumns) == count($primaryKeyFields) &&
-		  count(array_diff($primaryKeyColumns, $primaryKeyFields)) == 0;
+		$isEqualPK = count($primaryKeyColumnNames) == count($primaryKeyPropertyNames) &&
+		  count(array_diff($primaryKeyColumnNames, $primaryKeyPropertyNames)) == 0;
 		if (!$isEqualPK) {
 		  $lines[] = "DROP PRIMARY KEY";
-		  $lines[] = "ADD PRIMARY KEY(" . implode(',', array_map(array($this, 'quoteName'), $primaryKeyFields)) . ")";
+		  $lines[] = "ADD PRIMARY KEY(" . implode(',', array_map(array($this, 'quoteName'), $primaryKeyPropertyNames))
+		    . ")";
 		}
 		
 		// Indices
 		$usedIndexNames = array();
 		
 		$indexData = array(
-		  array($uniqueIndexColumns, $uniqueIndexFields, true),
-		  array($indexColumns, $indexFields, false)
+		  array($uniqueIndexColumnNames, $uniqueIndexPropertyNames, true),
+		  array($indexColumnNames, $indexPropertyNames, false)
 		);
 		foreach ($indexData as $data) {
-		  $currentColumns = $data[0];
-		  $currentFields = $data[1];
+		  $currentColumnNames = $data[0];
+		  $currentPropertyNames = $data[1];
 		  $unique = $data[2];
 		  
-		  $existingIndexColumns = array();
-  		foreach ($currentColumns as $indexName => $columnNames) {
-  		  if (count($columnNames) > 1 || !in_array($columnNames[0], $currentFields)) {
-  		    // Drop all composite key indices for now. Support will follow soon.
+		  $existingIndexColumnNames = array();
+  		foreach ($currentColumnNames as $indexName => $columnNames) {
+  		  if (count($columnNames) > 1 || !in_array($columnNames[0], $currentPropertyNames)) {
+  		    // Drop all composite indices for now. Support will follow soon.
   		    $lines[] = "DROP INDEX `{$indexName}`";
   		  }
   		  else {
   		    $usedIndexNames[] = $indexName;
-  		    $existingIndexColumns[] = $columnNames[0];
+  		    $existingIndexColumnNames[] = $columnNames[0];
   		  }
   		}
-  		$indicesToAdd = array_diff($currentFields, $existingIndexColumns);
+  		$indicesToAdd = array_diff($currentPropertyNames, $existingIndexColumnNames);
 
   		foreach ($indicesToAdd as $columnName) {
   		  $indexName = $columnName;
@@ -428,21 +423,21 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	 *
 	 * @param array $columnInfo An array containing the column properties as defined in MySQL's
 	 *                          information_schema.COLUMNS table.
-	 * @param phpDataMapper_Property $field
+	 * @param phpDataMapper_Property $property
 	 * @return bool
 	 */
-	protected function shouldUpdateColumnDefinition(array $columnInfo, phpDataMapper_Property $field)
+	protected function shouldUpdateColumnDefinition(array $columnInfo, phpDataMapper_Property $property)
 	{
     // Field type
-	  $expectedType = $this->_fieldTypeMap[$field->type()];
+	  $expectedType = $this->_propertyColumnTypeMap[$property->type()];
 	  if (strtolower($expectedType) != $columnInfo['DATA_TYPE']) {
 	    return true;
 	  }
 	  
 	  // Length
 	  if (preg_match('/^[a-z]+\((\d+)\)$/', $columnInfo['COLUMN_TYPE'], $regex_matches)) {
-      if ($field->hasOption('length')) {
-        $expectedLength = $field->option('length');
+      if ($property->hasOption('length')) {
+        $expectedLength = $property->option('length');
       }
       elseif (isset($this->_defaultLengths[$expectedType])) {
         $expectedLength = $this->_defaultLengths[$expectedType];
@@ -454,8 +449,8 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	  }    
 	  
 	  // Default value
-	  $defaultValue = $field->option('default');
-	  if ($field->option('required') && $defaultValue === NULL) {
+	  $defaultValue = $property->option('default');
+	  if ($property->option('required') && $defaultValue === NULL) {
 	    $expectedDefault = '';
 	  }
 	  else {
@@ -466,14 +461,14 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	  }
 	  
 	  // Nullable
-	  $expectedNullable = $field->option('required') || $field->option('primary') ? 'NO' : 'YES';
+	  $expectedNullable = ($property->option('required') || $property->option('primary')) ? 'NO' : 'YES';
 	  if ($expectedNullable != $columnInfo['IS_NULLABLE']) {
 	    return true;
 	  }
 	  
 	  // Auto increment
 	  $isSerialInDB = preg_match('/\bauto_increment\b/', $columnInfo['EXTRA']);
-	  if ($isSerialInDB != $field->option('serial', false)) {
+	  if ($isSerialInDB != $property->option('serial', false)) {
 	    return true;
 	  }
 	  

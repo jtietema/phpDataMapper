@@ -1,7 +1,7 @@
 <?PHP
 class Fixture_Dog_Mapper extends TestMapper
 {
-  protected $_datasource = 'test_dog';
+  protected $_dataSource = 'test_dog';
   
   public $id = array('type' => 'integer', 'primary' => true, 'serial' => true);
   public $name = array('type' => 'string', 'required' => true);

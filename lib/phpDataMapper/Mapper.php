@@ -20,11 +20,11 @@ abstract class phpDataMapper_Mapper
 	
 	
 	/**
-	 * A list of aliases for field types. This array maps the aliases to the actual types.
+	 * A list of aliases for property types. This array maps the aliases to the actual types.
 	 *
 	 * @var array
 	 */
-	protected $_fieldTypeAliases = array(
+	protected $_propertyTypeAliases = array(
 	  'int'     => 'integer',
 	  'decimal' => 'float',
 	  'bool'    => 'boolean'
@@ -35,18 +35,23 @@ abstract class phpDataMapper_Mapper
 	protected $_errors = array();
 	
 	// Store cached field info
-	protected $_fields = NULL;
+	protected $_properties = NULL;
 	protected $_relations = NULL;
 	protected $_primaryKey = NULL;
 	
 	// Data source setup info
-	protected $_datasource;
+	protected $_dataSource;
 	
 	
 	/**
-	 *	Constructor Method
+	 * Initializes a Mapper.
+	 * 
+	 * @param phpDataMapper_Adapter_Interface $adapter The adapter used to modify the table and, if no read adapter is
+	 *                                                 specified, also to read.
+	 * @param phpDataMapper_Adapter_Interface $adapterRead Optional slave adapter.
 	 */
-	public function __construct(phpDataMapper_Adapter_Interface $adapter, $adapterRead = null)
+	public function __construct(phpDataMapper_Adapter_Interface $adapter,
+	  phpDataMapper_Adapter_Interface $adapterRead = NULL)
 	{
 		$this->_adapter = $adapter;
 		
@@ -60,15 +65,15 @@ abstract class phpDataMapper_Mapper
 		}
 		
 		// Ensure table has been defined
-		if(!$this->_datasource) {
-			throw new $this->_exceptionClass("Error: Datasource name must be defined - please define the \$_datasource"
+		if(!$this->_dataSource) {
+			throw new $this->_exceptionClass("Error: Data source name must be defined - please define the \$_dataSource"
 			  . " variable. This can be a database table name, collection or bucket name, a file name, or a URL, depending on"
 			  . " your adapter.");
 		}
 		
-		// Ensure fields have been defined for current table
-		if(!$this->fields()) {
-			throw new $this->_exceptionClass("Error: Fields must be defined");
+		// Ensure properties have been defined for current table
+		if(!$this->properties()) {
+			throw new $this->_exceptionClass("Error: Properties must be defined");
 		}
 		
 		// Call init for extension without overriding constructor
@@ -77,7 +82,10 @@ abstract class phpDataMapper_Mapper
 	
 	
 	/**
-	 * Initialization function, run immediately after __construct() so that the constructor is never overridden
+	 * Initialization function, run immediately after __construct() so that there is no need to
+	 * override the constructor to implement custom initialization in subclasses.
+	 * 
+	 * @return void
 	 */
 	public function init()
 	{
@@ -140,60 +148,74 @@ abstract class phpDataMapper_Mapper
 	}
 	
 	
-	/**
-	 * Get name of the data source
-	 */
-	public function datasource()
+	public function dataSource()
 	{
-		return $this->_datasource;
+		return $this->_dataSource;
 	}
 	
 	
 	/**
-	 * Get formatted fields with all neccesary array keys and values.
-	 * Merges defaults with defined field values to ensure all options exist for each field.
-	 *
-	 * @return array Defined fields plus all defaults for full array of all possible options
+	 * Returns a list of {@link phpDataMapper_Property} instances representing the model. Initializes
+	 * the list lazily, so the properties are loaded when this method is first called.
+	 * 
+	 * Also reponsible for initializing relations and collecting the primary key definition.
+	 * 
+	 * @return array List of {@link phpDataMapper_Property} instances representing the model definition.
 	 */
-	public function fields()
+	public function properties()
 	{
-		if($this->_fields !== NULL) {
-			$returnFields = $this->_fields;
-		} else {
-		  $this->_fields = array();
+	  if ($this->_properties === NULL) {
+	    $this->_properties = array();
 		  $this->_relations = array();
 		  $this->_primaryKey = array();
 		  
-			$getFields = create_function('$obj', 'return get_object_vars($obj);');
-			$fields = $getFields($this);
+			$getProperties = create_function('$obj', 'return get_object_vars($obj);');
+			$properties = $getProperties($this);
 			
-			$returnFields = array();
-			foreach($fields as $fieldName => $fieldOpts) {
-			  $fieldType = $fieldOpts['type'];
-			  unset($fieldOpts['type']);
+			foreach ($properties as $name => $options) {
+			  $type = $options['type'];
+			  unset($options['type']);
 			  
-			  // Store relations (and remove them from the mix of regular fields)
-				if ($fieldType == 'relation') {
-					$this->_relations[$fieldName] = $fieldOpts;
+			  // Store relations (and remove them from the mix of regular properties)
+				if ($type == 'relation') {
+					$this->_relations[$name] = $options;
 					continue; // skip, not a field
 				}
 				
-				while (isset($this->_fieldTypeAliases[$fieldType])) {
-				  $fieldType = $this->_fieldTypeAliases[$fieldType];
+				while (isset($this->_propertyTypeAliases[$type])) {
+				  $type = $this->_propertyTypeAliases[$type];
 				}
 				
-				$fieldClassName = 'phpDataMapper_Property_' . $fieldType;
-				$field = new $fieldClassName($fieldName, $fieldOpts);
+				$className = 'phpDataMapper_Property_' . $type;
+				$property = new $className($name, $options);
 				
-				if ($field->option('primary') === true) {
-					$this->_primaryKey[] = $field;
+				if ($property->option('primary') === true) {
+					$this->_primaryKey[] = $property;
 				}
 				
-				$returnFields[$fieldName] = $field;
+				$this->_properties[$name] = $property;
 			}
-			$this->_fields = $returnFields;
-		}
-		return $returnFields;
+	  }
+	  
+	  return $this->_properties;
+	}
+	
+	
+	/**
+	 * Returns the {@link phpDataMapper_Property} instance for the supplied name.
+	 *
+	 * @param string $name 
+	 * @return phpDataMapper_Property
+	 * @throws InvalidArgumentException If there is no property with the supplied name.
+	 */
+	public function property($name)
+	{
+	  $properties = $this->properties();
+	  
+	  if (!$this->propertyExists($name)) {
+      throw new InvalidArgumentException("Unknown property '{$name}' requested.");
+	  }
+	  return $properties[$name];
 	}
 	
 	
@@ -203,74 +225,74 @@ abstract class phpDataMapper_Mapper
 	public function relations()
 	{
 		if($this->_relations === NULL) {
-		  // Fields and relations haven't been initialized yet.
-			$this->fields();
+		  // Properties and relations haven't been initialized yet.
+			$this->properties();
 		}
 		return $this->_relations;
 	}
 	
 	
   /**
-   * Get the values of the primary key fields for the supplied entity.
+   * Get the values of the primary key properties for the supplied entity.
    *
    * @param phpDataMapper_Entity $entity
    * @return array
    */
 	public function primaryKey(phpDataMapper_Entity $entity)
 	{
-		$pkFields = $this->primaryKeyFields();
+		$pkProperties = $this->primaryKeyProperties();
 		$values = array();
-		foreach ($pkFields as $pkField) {
-		  $pkFieldName = $pkField->name();
-		  $values[$pkFieldName] = $entity->$pkFieldName;
+		foreach ($pkProperties as $pkProperty) {
+		  $propertyName = $pkProperty->name();
+		  $values[$propertyName] = $entity->$propertyName;
 		}
 		return $values;
 	}
 	
 	
 	/**
-	 * Get the objects respresenting the primary key fields.
+	 * Get the {@link phpDataMapper_Property} instances respresenting the primary key.
 	 *
-	 * @return array
+	 * @return array An array of {@link phpDataMapper_Property} instances.
 	 */
-	public function primaryKeyFields()
+	public function primaryKeyProperties()
 	{
 	  if ($this->_primaryKey === NULL) {
-	    $this->fields();
+	    $this->properties();
 	  }
 		return $this->_primaryKey;
 	}
 	
 	
 	/**
-	 * Returns the names of the primary key fields.
+	 * Returns the names of the primary key properties.
 	 *
-	 * @return array
+	 * @return array An array of strings
 	 */
-	public function primaryKeyFieldNames()
+	public function primaryKeyPropertyNames()
 	{
 	  $names = array();
-	  foreach ($this->primaryKeyFields() as $field) {
-	    $names[] = $field->name();
+	  foreach ($this->primaryKeyProperties() as $property) {
+	    $names[] = $property->name();
 	  }
 	  return $names;
 	}
 	
 	
 	/**
-	 * Check if field exists in defined fields
+	 * @return bool
 	 */
-	public function fieldExists($field)
+	public function propertyExists($name)
 	{
-		return array_key_exists($field, $this->fields());
+		return array_key_exists($name, $this->properties());
 	}
 	
 	
 	/**
 	 * Get an entity by primary key. This method expects as many parameters as there are
-	 * primary key fields, in the order in which the fields are defined on the model.
+	 * primary key properties, in the order in which the properties are defined on the model.
 	 * 
-	 * When no parameters are supplied, a new record is returned.
+	 * When no parameters are supplied, a new entity is returned.
 	 *
 	 * @param mixed $value,...
 	 * @return phpDataMapper_Entity
@@ -284,10 +306,10 @@ abstract class phpDataMapper_Mapper
 			$entity = new $this->_entityClass();
 			
 			// Set default values.
-			foreach ($this->fields() as $fieldName => $field) {
-			  $defaultValue = $field->option('default');
+			foreach ($this->properties() as $propertyName => $property) {
+			  $defaultValue = $property->option('default');
 			  if ($defaultValue !== NULL) {
-			    $entity->$fieldName = $defaultValue;
+			    $entity->$propertyName = $defaultValue;
 			  }
 			}
 			
@@ -295,13 +317,13 @@ abstract class phpDataMapper_Mapper
 		
 		// Find record by primary key
 		} else {		  
-		  $pkFields = $this->primaryKeyFieldNames();
-		  if (count($pkFields) != count($pkValues)) {
-		    throw new InvalidArgumentException(__METHOD__ . " Expected " . count($pkFields) . " primary key values, got "
+		  $pkPropertyNames = $this->primaryKeyPropertyNames();
+		  if (count($pkPropertyNames) != count($pkValues)) {
+		    throw new InvalidArgumentException("Expected " . count($pkFields) . " primary key values, got "
 		      . count($pkValues));
 		  }
 		  
-		  $conditions = array_combine($pkFields, $pkValues);
+		  $conditions = array_combine($pkPropertyNames, $pkValues);
 		  
 			$entity = $this->first($conditions);
 		}
@@ -390,9 +412,9 @@ abstract class phpDataMapper_Mapper
 	public function first(array $conditions = array())
 	{
 		$query = $this->select()->where($conditions)->limit(1);
-		$entitys = $this->adapterRead()->read($query);
-		if($entitys) {
-			return $entitys->first();
+		$entities = $this->adapterRead()->read($query);
+		if($entities) {
+			return $entities->first();
 		} else {
 			return false;
 		}
@@ -422,7 +444,7 @@ abstract class phpDataMapper_Mapper
 			
 			return $r;
 		} else {
-			throw new $this->_exceptionClass(__METHOD__ . " Error: Unable to execute SQL query - failed to create"
+			throw new $this->_exceptionClass("Error: Unable to execute SQL query - failed to create"
 			  . " prepared statement from given SQL");
 		}
 		
@@ -438,7 +460,7 @@ abstract class phpDataMapper_Mapper
 	public function select($fields = "*")
 	{
 		$query = new $this->_queryClass($this);
-		$query->select($fields, $this->datasource());
+		$query->select($fields, $this->dataSource());
 		return $query;
 	}
 	
@@ -524,18 +546,18 @@ abstract class phpDataMapper_Mapper
 	
 	
 	/**
-	 * Returns the field object if and only if exactly one primary key field is found
-	 * that is also a serial. Otherwise, NULL is returned.
+	 * Returns the {@link phpDataMapper_Property} object if and only if exactly one
+	 * primary key property is found that is also serial. Otherwise, NULL is returned.
 	 *
-	 * @return mixed A phpDataMapper_Property instance or NULL.
+	 * @return mixed A {@link phpDataMapper_Property} instance or NULL.
 	 */
-	private function singleSerialPrimaryKeyField()
+	private function singleSerialPrimaryKeyProperty()
 	{
-	  $pkFields = $this->primaryKeyFields();
-	  if (count($pkFields) == 1) {
-	    $pkField = $pkFields[0];
-	    if ($pkField->option('serial', false)) {
-	      return $pkField;
+	  $pkProperties = $this->primaryKeyProperties();
+	  if (count($pkProperties) == 1) {
+	    $property = $pkProperties[0];
+	    if ($property->option('serial', false)) {
+	      return $property;
 	    }
 	  }
 	  
@@ -557,22 +579,22 @@ abstract class phpDataMapper_Mapper
 		
 		$data = array();
 		$entityData = $entity->toArray();
-		foreach($entityData as $field => $value) {
-			if($this->fieldExists($field)) {
+		foreach($entityData as $propertyName => $value) {
+			if($this->propertyExists($propertyName)) {
 				// Empty values will be NULL (easier to be handled by databases)
-				$data[$field] = $this->isEmpty($value) ? null : $value;
+				$data[$propertyName] = $this->isEmpty($value) ? NULL : $value;
 			}
 		}
 		
 		// Ensure there is actually data to update
 		if(count($data) > 0) {
-			$result = $this->adapter()->create($this->datasource(), $data);
+			$result = $this->adapter()->create($this->dataSource(), $data);
 			
 			// Update primary key on row
-		  $pkField = $this->singleSerialPrimaryKeyField();
-		  if ($pkField) {
-		    $pkFieldName = $pkField->name();
-		    $entity->$pkFieldName = $result;
+		  $pkProperty = $this->singleSerialPrimaryKeyProperty();
+		  if ($pkProperty) {
+		    $pkPropertyName = $pkProperty->name();
+		    $entity->$pkPropertyName = $result;
 		  }
 			
 			// Load relations for this row so they can be used immediately
@@ -609,18 +631,18 @@ abstract class phpDataMapper_Mapper
 	    return false;
 	  }
 	  
-		// Ensure fields exist to prevent errors
+		// Ensure properties exist to prevent errors
 		$binds = array();
-		foreach($entity->dataModified() as $field => $value) {
-			if($this->fieldExists($field)) {
+		foreach($entity->dataModified() as $propertyName => $value) {
+			if($this->propertyExists($propertyName)) {
 				// Empty values will be NULL (easier to be handled by databases)
-				$binds[$field] = $this->isEmpty($value) ? null : $value;
+				$binds[$propertyName] = $this->isEmpty($value) ? NULL : $value;
 			}
 		}
 		
 		// Handle with adapter
 		if(count($binds) > 0) {
-			$result = $this->adapter()->update($this->datasource(), $binds, $this->primaryKey($entity));
+			$result = $this->adapter()->update($this->dataSource(), $binds, $this->primaryKey($entity));
 		} else {
 			$result = true;
 		}
@@ -651,8 +673,7 @@ abstract class phpDataMapper_Mapper
 		}
 		
 		if (!is_array($conditions)) {
-		  throw new InvalidArgumentException(__METHOD__ . " Array or phpDataMapper_Entity object expected, got "
-		    . gettype($conditions));
+		  throw new InvalidArgumentException("Array or phpDataMapper_Entity object expected, got " . gettype($conditions));
 		}
 		
 		if ($this->beforeDelete($conditions) === false) {
@@ -660,14 +681,13 @@ abstract class phpDataMapper_Mapper
 		}
 		
 		if(is_array($conditions)) {
-			$result = $this->adapter()->delete($this->datasource(), $conditions);
+			$result = $this->adapter()->delete($this->dataSource(), $conditions);
 			
 			if ($result) {
 			  $this->afterDelete($conditions);
 			}
 		} else {
-			throw new $this->_exceptionClass(__METHOD__ . " conditions must be entity object or array, given "
-			  . gettype($conditions));
+			throw new $this->_exceptionClass("Conditions must be entity object or array, given " . gettype($conditions));
 		}
 		
 		return $result;
@@ -675,20 +695,25 @@ abstract class phpDataMapper_Mapper
 	
 	
 	/**
-	 * Truncate data source
-	 * Should delete all rows and reset serial/auto_increment keys to 0
+	 * This will delete all rows from the mapper's data source and reset the value of any
+	 * AUTO_INCREMENT columns to 0.
+	 *
+	 * @return bool
 	 */
-	public function truncateDatasource() {
-		return $this->adapter()->truncateDatasource($this->datasource());
+	public function truncateDataSource()
+	{
+		return $this->adapter()->truncateDataSource($this->dataSource());
 	}
 	
 	
 	/**
-	 * Drop/delete data source
-	 * Destructive and dangerous - drops entire data source and all data
+	 * Completely removes the mapper's data source from the database.
+	 *
+	 * @return bool
 	 */
-	public function dropDatasource() {
-		return $this->adapter()->dropDatasource($this->datasource());
+	public function dropDataSource()
+	{
+		return $this->adapter()->dropDataSource($this->dataSource());
 	}
 	
 	
@@ -702,11 +727,11 @@ abstract class phpDataMapper_Mapper
 	  $this->beforeValidate($entity);
 	  
 		// Check validation rules on each feild
-		foreach($this->fields() as $fieldName => $field) {
-			if($field->option('required') === true) {
+		foreach($this->properties() as $propertyName => $property) {
+			if ($property->option('required') === true) {
 				// Required field
-				if($this->isEmpty($entity->$fieldName)) {
-					$this->error($field, "Required field '" . $fieldName . "' was left blank");
+				if ($this->isEmpty($entity->$propertyName)) {
+					$this->error($field, "Required property '" . $propertyName . "' was left blank");
 				}
 			}
 		}
@@ -725,7 +750,7 @@ abstract class phpDataMapper_Mapper
 	 */
 	public function migrate()
 	{
-		return $this->adapter()->migrate($this->datasource(), $this->fields());
+		return $this->adapter()->migrate($this->dataSource(), $this->properties());
 	}
 	
 	
@@ -830,7 +855,7 @@ abstract class phpDataMapper_Mapper
 	
 	
 	/**
-	 * Check if a value is empty, excluding 0 (annoying PHP issue)
+	 * Check if a value is empty, excluding 0 (annoying PHP issue).
 	 *
 	 * @param mixed $value
 	 * @return boolean
@@ -842,28 +867,30 @@ abstract class phpDataMapper_Mapper
 	
 	
 	/**
-	 * Check if any errors exist
+	 * Check if any errors exist.
 	 * 
-	 * @param string $field OPTIONAL field name 
+	 * @param string $propertyName OPTIONAL field name 
 	 * @return boolean
 	 */
-	public function hasErrors($field = null)
+	public function hasErrors($propertyName = NULL)
 	{
-		if(null !== $field) {
-			return isset($this->_errors[$field]) ? count($this->_errors[$field]) : false;
+		if(null !== $propertyName) {
+			return isset($this->_errors[$propertyName]) ? count($this->_errors[$propertyName]) : false;
 		}
 		return count($this->_errors);
 	}
 	
 	
 	/**
-	 * Get array of error messages
+	 * Get an array of error messages, where the keys are the property names and the values
+	 * lists of error messages.
 	 *
+	 * @param string $msgs
 	 * @return array
 	 */
 	public function errors($msgs = null)
 	{
-		// Return errors for given field
+		// Return errors for given property
 		if(is_string($msgs)) {
 			return isset($this->_errors[$msgs]) ? $this->_errors[$msgs] : array();
 		

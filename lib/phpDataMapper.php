@@ -4,31 +4,37 @@ class phpDataMapper {
   
   
   /**
-	 * Attempt to load class file based on phpDataMapper naming conventions.
-	 */
+   * Attempt to load a class based on the phpDataMapper naming conventions. Since
+   * this uses require to load the class, it is possible that this method will never
+   * return because an error is raised by PHP.
+   *
+   * @param string $className The name of the class to load.
+   * @return bool True upon successful load, false otherwise.
+   */
 	public static function loadClass($className)
 	{
-		$loaded = false;
-		
-		// If class has already been defined, skip loading
-		if(class_exists($className, false)) {
-			$loaded = true;
-		} else {
-			// Require phpDataMapper_* files by assumed folder structure (naming convention)
-			if(strpos($className, "phpDataMapper") !== false) {
-				$classFile = str_replace("_", "/", $className);
-				$loaded = require_once(dirname(__FILE__) . "/" . $classFile . ".php");
-			}
+		// If class has already been defined, skip loading.
+		if (class_exists($className, false)) {
+			return true;
 		}
 		
-		// Ensure required class was loaded
-		/*
-		if(!$loaded) {
-			throw new Exception(__METHOD__ . " Failed: Unable to load class '" . $className . "'!");
+		// Require phpDataMapper_* files by assumed folder structure (naming convention).
+		if (self::startsWith($className, 'phpDataMapper_')) {
+			$classFile = str_replace('_', '/', $className) . '.php';
+			
+			// Include relative from the current class.
+			require dirname(__FILE__) . '/' . $classFile;
+			
+			return true;
 		}
-		*/
 		
-		return $loaded;
+		return false;
+	}
+	
+	
+	private static function startsWith($string, $prefix)
+	{
+	  return substr($string, 0, strlen($prefix)) == $prefix;
 	}
 	
 	

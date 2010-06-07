@@ -131,17 +131,17 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	 * Migrate table structure changes to database. Creates the table if it doesn't already exist,
 	 * updates the schema otherwise.
 	 * 
-	 * @param string $table Table name
-	 * @param array $fields Fields and their representing objects as defined in the mapper
+	 * @param string $table The name of the table to migrate.
+	 * @param array $properties List of {@link phpDataMapper_Property} objects representing the model definition.
 	 */
-	public function migrate($table, array $fields)
+	public function migrate($table, array $properties)
 	{
 		if($this->tableExists($table)) {
 			// Update table
-			$this->migrateTableUpdate($table, $fields);
+			$this->migrateTableUpdate($table, $properties);
 		} else {
 			// Create table
-			$this->migrateTableCreate($table, $fields);
+			$this->migrateTableCreate($table, $properties);
 		}
 	}
 	
@@ -150,16 +150,16 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	
 	
 	/**
-	 * Creates a table.
+	 * Creates the table specified.
 	 *
-	 * @param string $table 
-	 * @param array $fields The list of field instances.
+	 * @param string $table The name of the table to create.
+	 * @param array $properties List of {@link phpDataMapper_Property} objects representing the model definition.
 	 * @return bool
 	 */
-	public function migrateTableCreate($table, array $fields)
-	{		
+	protected function migrateTableCreate($table, array $properties)
+	{
 		// Get syntax for table with fields/columns
-		$sql = $this->migrateSyntaxTableCreate($table, $fields);
+		$sql = $this->migrateSyntaxTableCreate($table, $properties);
 		
 		// Add query to log
 		phpDataMapper::logQuery($sql);
@@ -170,19 +170,27 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	}
 	
 	
-	abstract protected function migrateSyntaxTableCreate($table, array $fields);
+	/**
+	 * Creates an SQL statement to create the table specified, based on the property objects
+	 * supplied.
+	 *
+	 * @param string $table The name of the table to create.
+	 * @param array $properties List of {@link phpDataMapper_Property} objects representing the model definition.
+	 * @return string SQL statement.
+	 */
+	abstract protected function migrateSyntaxTableCreate($table, array $properties);
 	
 	
 	/**
 	 * Updates a table schema based on a model definition (i.e. the list of a model's properties).
 	 *
-	 * @param string $table 
-	 * @param array $fields 
+	 * @param string $table The name of the table of which to update the schema.
+	 * @param array $properties List of {@link phpDataMapper_Property} objects representing the model definition.
 	 * @return bool True if any updates were performed, false otherwise.
 	 */
-	public function migrateTableUpdate($table, array $fields)
+	protected function migrateTableUpdate($table, array $properties)
 	{		
-		$sql = $this->migrateSyntaxTableUpdate($table, $fields);
+		$sql = $this->migrateSyntaxTableUpdate($table, $properties);
 		
 		if (!$sql) {
 		  return false;
@@ -198,7 +206,16 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	}
 	
 	
-	abstract protected function migrateSyntaxTableUpdate($table, array $fields);
+	/**
+	 * Possibly creates an SQL statement to alter the table specified. Introspects the current
+	 * table definition to determine if any changes are needed, and only performs the necessary
+	 * changes.
+	 *
+	 * @param string $table The name of the table to alter.
+	 * @param array $properties List of {@link phpDataMapper_Property} instances representing the model definition.
+	 * @return mixed SQL statement, or false if there is nothing to update.
+	 */
+	abstract protected function migrateSyntaxTableUpdate($table, array $properties);
 	
 	
 	/**
@@ -383,11 +400,11 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	
 	
 	/**
-	 * Truncate a database table
-	 * Should delete all rows and reset serial/auto_increment keys to 0
+	 * @see phpDataMapper_Adapter_Interface::truncateDataSource()
 	 */
-	public function truncateDatasource($source) {
-		$sql = "TRUNCATE TABLE " . $source;
+	public function truncateDataSource($dataSource)
+	{
+		$sql = "TRUNCATE TABLE `{$dataSource}`";
 		
 		// Add query to log
 		phpDataMapper::logQuery($sql);
@@ -397,11 +414,11 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	
 	
 	/**
-	 * Drop a database table
-	 * Destructive and dangerous - drops entire table and all data
+	 * @see phpDataMapper_Adapter_Interface::dropDataSource()
 	 */
-	public function dropDatasource($source) {
-		$sql = "DROP TABLE " . $source;
+	public function dropDataSource($dataSource)
+	{
+		$sql = "DROP TABLE `{$dataSource}`";
 		
 		// Add query to log
 		phpDataMapper::logQuery($sql);
@@ -411,8 +428,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	
 	
 	/**
-	 * Create a database
- 	 * Will throw errors if user does not have proper permissions
+	 * @see phpDataMapper_Adapter_Interface::createDatabase()
 	 */
 	public function createDatabase($database) {
 		$sql = "CREATE DATABASE " . $database;
@@ -424,11 +440,9 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	}
 	
 	
-	/**
-	 * Drop a database table
-	 * Destructive and dangerous - drops entire table and all data
-	 * Will throw errors if user does not have proper permissions
-	 */
+  /**
+   * @see phpDataMapper_Adapter_Interface::dropDatabase()
+   */
 	public function dropDatabase($database) {
 		$sql = "DROP DATABASE " . $database;
 		
@@ -441,7 +455,7 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	
 	/**
 	 * Quotes an SQL identifier (such as a field name) in backticks so we don't get errors
-	 * when we use reserved words as identifiers.
+	 * when we use reserved words as identifiers. Useful when quoting an array of identifiers.
 	 *
 	 * @param string $name 
 	 * @return string
@@ -453,7 +467,11 @@ abstract class phpDataMapper_Adapter_PDO implements phpDataMapper_Adapter_Interf
 	
 	
 	/**
-	 * Return fields as a string for a query statement
+	 * Converts a list of column names to a string for insertion into an SQL statement. Useful
+	 * to create SELECT clauses.
+	 * 
+	 * @param array $fields
+	 * @return string
 	 */
 	public function statementFields(array $fields = array())
 	{

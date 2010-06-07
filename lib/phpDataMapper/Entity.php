@@ -67,28 +67,23 @@ class phpDataMapper_Entity
 	
 	
 	/**
-	 *	Sets an object or array
+	 * Set multiple attributes at once.
+	 * 
+	 * @param array $data List of attributes to set (key/value pairs).
 	 */
-	public function data($data = null)
+	public function data(array $data)
 	{
-		if(null !== $data) {
-			if(is_object($data) || is_array($data)) {
-				foreach($data as $k => $v) {
-					$this->$k = $v;
-				}
-				return $this;
-			} else {
-				throw new InvalidArgumentException(__METHOD__ . " Expected array or object input - " . gettype($data) .
-				  " given");
-			}
-		} else {
-			return $this->toArray();
-		}
+	  foreach ($data as $key => $value) {
+	    $this->$key = $value;
+	  }
+	  
+	  return $this;
 	}
 	
 	
 	/**
-	 * Returns array of key => value pairs for row data
+	 * Returns an array of key/value pairs with data for dirty attributes, i.e. the
+	 * attributes that have changed since last saving the entity to the database.
 	 * 
 	 * @return array
 	 */
@@ -98,6 +93,12 @@ class phpDataMapper_Entity
 	}
 	
 	
+	/**
+	 * Internal callback that is called whenever the entity is successfully saved to
+	 * the database. Allows the entity to update internal state.
+	 *
+	 * @return void
+	 */
 	public function wasSaved()
 	{
 	  $this->_data = array_merge($this->_data, $this->_dataModified);
@@ -108,7 +109,7 @@ class phpDataMapper_Entity
 	
 	
 	/**
-	 * Returns array of key => value pairs for row data
+	 * Returns the attribute values for this entity as an array of key/value pairs.
 	 * 
 	 * @return array
 	 */
@@ -119,23 +120,11 @@ class phpDataMapper_Entity
 	
 	
 	/**
-	 * Return JSON-encoded row (convenience function)
-	 * Only works for basic objects right now
-	 * 
-	 * @todo Return fully mapped row objects with related rows (has one, has many, etc)
-	 */
-	public function toJson()
-	{
-		return json_encode($this->getData());
-	}
-	
-	
-	/**
 	 * Enable isset() for object properties
 	 */
 	public function __isset($key)
 	{
-		return ($this->$key !== null) ? true : false;
+		return ($this->$key !== NULL) ? true : false;
 	}
 	
 	

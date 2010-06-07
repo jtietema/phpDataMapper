@@ -9,13 +9,13 @@ interface phpDataMapper_Adapter_Interface
 {
   /**
   * @param mixed $host Host string or pre-existing PDO object
-  * @param string $datasource Optional if $host is PDO object
+  * @param string $database Optional if $host is PDO object
   * @param string $username Optional if $host is PDO object
   * @param string $password Optional if $host is PDO object
   * @param array $options
   * @return void
   */
-  public function __construct($host, $datasource = null, $username = null, $password = null, array $options = array());
+  public function __construct($host, $database = null, $username = null, $password = null, array $options = array());
 	
 	
 	/**
@@ -75,29 +75,34 @@ interface phpDataMapper_Adapter_Interface
 	
 	
 	/**
-	 * Truncate data source (table for SQL)
-	 * Should delete all rows and reset serial/auto_increment keys to 0
+	 * This will delete all rows from the specified data source and reset the value of any
+	 * AUTO_INCREMENT columns to 0.
+	 *
+	 * @param string $dataSource The name of the data source to drop.
+	 * @return bool
 	 */
-	public function truncateDatasource($source);
-	
-	/**
-	 * Drop/delete data source (table for SQL)
-	 * Destructive and dangerous - drops entire data source and all data
-	 */
-	public function dropDatasource($source);
+	public function truncateDataSource($dataSource);
 	
 	
 	/**
-	 * Create a database
- 	 * Will throw errors if user does not have proper permissions
+	 * Completely removes a data source from the database.
+	 *
+	 * @param string $dataSource The name of the data source to drop.
+	 * @return bool
+	 */
+	public function dropDataSource($dataSource);
+	
+	
+	/**
+	 * @param string $database The name of the database to create.
+	 * @return bool
 	 */
 	public function createDatabase($database);
 	
 	
 	/**
-	 * Drop an entire database
-	 * Destructive and dangerous - drops entire table and all data
-	 * Will throw errors if user does not have proper permissions
-	 */
+   * @param string $database The name of the database to drop.
+   * @return bool
+   */
 	public function dropDatabase($database);
 }
