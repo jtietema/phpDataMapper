@@ -2,9 +2,6 @@
 require_once 'PHPUnit/Framework.php';
 require dirname(__FILE__) . '/../lib/phpDataMapper.php';
 
-// Date setup
-date_default_timezone_set('America/Chicago');
-
 
 class phpDataMapper_TestHelper
 {
