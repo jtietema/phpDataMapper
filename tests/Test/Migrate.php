@@ -8,7 +8,7 @@ class Test_Migrate extends PHPUnit_Framework_TestCase
   
   public function setUp()
   {
-    $this->logEntryMapper = fixture_mapper('LogEntry');
+    $this->logEntryMapper = phpDataMapper_TestHelper::mapper('LogEntry');
   }
   
   public function tearDown()

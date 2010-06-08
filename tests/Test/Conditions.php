@@ -9,15 +9,17 @@ class Test_Conditions extends PHPUnit_Framework_TestCase
 	protected $backupGlobals = false;
 	const num_posts = 10;
 	
+	protected $blogMapper;
+	
 	/**
 	 * Prepare the data
 	 */
 	public static function setUpBeforeClass()
 	{
-		$blogMapper = fixture_mapper('Blog');
+		$blogMapper = phpDataMapper_TestHelper::mapper('Blog');
 		$blogMapper->truncateDatasource();
 		
-		$blogCommentsMapper = fixture_mapper('Blog_Comments');
+		$blogCommentsMapper = phpDataMapper_TestHelper::mapper('Blog_Comments');
 		$blogCommentsMapper->truncateDatasource();
 		
 		// Insert blog dummy data
@@ -31,28 +33,34 @@ class Test_Conditions extends PHPUnit_Framework_TestCase
 	}
 	
 	
+	public function setUp()
+	{
+	  $this->blogMapper = phpDataMapper_TestHelper::mapper('Blog');
+	}
+	
+	
 	public function testDefault()
 	{
-		$mapper = fixture_mapper('Blog');
+		$mapper = $this->blogMapper;
 		$post = $mapper->first(array('id' => 2));
 		$this->assertEquals( $post->id, 2 );
 	}
 	
 	public function testEquals()
 	{
-		$mapper = fixture_mapper('Blog');
+		$mapper = $this->blogMapper;
 		$post = $mapper->first(array('id =' => 2));
 		$this->assertEquals( $post->id, 2 );
 	}
 	
 	public function testArrayDefault() {
-		$mapper = fixture_mapper('Blog');
+		$mapper = $this->blogMapper;
 		$post = $mapper->first(array('id' => array(2)));
 		$this->assertEquals( $post->id, 2 );
 	}
 	
 	public function testArrayInSingle() {
-		$mapper = fixture_mapper('Blog');
+		$mapper = $this->blogMapper;
 		$post = $mapper->first(array('id IN' => array(2)));
 		$this->assertEquals( $post->id, 2 );
 		
@@ -61,25 +69,25 @@ class Test_Conditions extends PHPUnit_Framework_TestCase
 	}
 	
 	public function testArrayNotInSingle() {
-		$mapper = fixture_mapper('Blog');
+		$mapper = $this->blogMapper;
 		$post = $mapper->first(array('id NOT IN' => array(2)));
 		$this->assertEquals( $post->id, 1 );
 	}
 	
 	public function testArrayIn() {
-		$mapper = fixture_mapper('Blog');
+		$mapper = $this->blogMapper;
 		$posts = $mapper->all(array('id IN' => array(3,4,5)));
 		$this->assertEquals( $posts->count(), 3 );
 	}
 	
 	public function testArrayNotIn() {
-		$mapper = fixture_mapper('Blog');
+		$mapper = $this->blogMapper;
 		$posts = $mapper->all(array('id NOT IN' => array(3,4,5)));
 		$this->assertEquals( $posts->count(), self::num_posts - 3 );
 	}
 	
 	public function testOperators() {
-		$mapper = fixture_mapper('Blog');
+		$mapper = $this->blogMapper;
 		$this->assertFalse( $mapper->first(array('id <' => 1)) );
 		$this->assertFalse( $mapper->first(array('id >' => self::num_posts)) );
 		
@@ -88,7 +96,7 @@ class Test_Conditions extends PHPUnit_Framework_TestCase
 	}
 	
 	public function testMathFunctions() {
-		$mapper = fixture_mapper('Blog');
+		$mapper = $this->blogMapper;
 		try {
 			$this->assertEquals( $mapper->first(array('SQRT(id)' => 2))->id, 4 );
 			$this->assertEquals( $mapper->first(array('COS(id-1)' => 1))->id, 1 );

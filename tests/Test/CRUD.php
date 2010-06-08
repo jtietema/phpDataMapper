@@ -17,8 +17,8 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	public function setUp()
 	{
 		// New mapper instance
-		$this->blogMapper = fixture_mapper('Blog');
-		$this->dogMapper = fixture_mapper('Dog');
+		$this->blogMapper = phpDataMapper_TestHelper::mapper('Blog');
+		$this->dogMapper = phpDataMapper_TestHelper::mapper('Dog');
 	}
 	public function tearDown() {
 	  $this->dogMapper->truncateDatasource();
@@ -27,7 +27,7 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	
 	public function testAdapterInstance()
 	{
-		$this->assertTrue(fixture_adapter() instanceof phpDataMapper_Adapter_Interface);
+		$this->assertTrue(phpDataMapper_TestHelper::adapter() instanceof phpDataMapper_Adapter_Interface);
 	}
 	
 	public function testMapperInstance()

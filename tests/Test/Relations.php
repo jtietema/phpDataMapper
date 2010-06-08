@@ -17,7 +17,7 @@ class Test_Relations extends PHPUnit_Framework_TestCase
 	public function setUp()
 	{
 		// New mapper instance
-		$this->blogMapper = fixture_mapper('Blog');
+		$this->blogMapper = phpDataMapper_TestHelper::mapper('Blog');
 	}
 	public function tearDown() {}
 	
@@ -46,7 +46,7 @@ class Test_Relations extends PHPUnit_Framework_TestCase
 	public function testBlogCommentsRelationInsertByObject($postId)
 	{
 		$post = $this->blogMapper->get($postId);
-		$commentMapper = fixture_mapper('Blog_Comments');
+		$commentMapper = phpDataMapper_TestHelper::mapper('Blog_Comments');
 		
 		// Array will usually come from POST/JSON data or other source
 		$commentSaved = false;

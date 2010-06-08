@@ -1,57 +1,48 @@
-<?php
-// Require PHPUnit
+<?PHP
 require_once 'PHPUnit/Framework.php';
-
-// Require phpDataMapper
 require dirname(__FILE__) . '/../lib/phpDataMapper.php';
 
 // Date setup
 date_default_timezone_set('America/Chicago');
 
 
-/**
- * Return database adapter for use
- * Really hate to have to do it this way... Those TestSuites should be far easier than they are...
- */
-$fixture_adapter = null; 
-function fixture_adapter()
+class phpDataMapper_TestHelper
 {
-	global $fixture_adapter; // Yikes, I know...
-	if($fixture_adapter === null) {
-		// New db connection
-		$fixture_adapter = new phpDataMapper_Adapter_Mysql('localhost', 'test', 'root', '');
-	}
-	return $fixture_adapter;
+  private static $_adapter = NULL;
+  
+  
+  private static $_mappers = array();
+  
+  
+  public static function adapter()
+  {
+    if (self::$_adapter === NULL) {
+      self::$_adapter = new phpDataMapper_Adapter_MySQL('localhost', 'phpdatamapper_test', 'root', '');
+    }
+    return self::$_adapter;
+  }
+  
+  
+  public static function mapper($name)
+  {
+    if (!isset(self::$_mappers[$name])) {
+      $className = 'Fixture_' . $name . '_Mapper';
+      self::$_mappers[$name] = new $className(self::adapter());
+    }
+    return self::$_mappers[$name];
+  }
+  
+  
+  public static function loadClass($className)
+  {
+    $classFile = str_replace('_', '/', $className) . '.php';
+    require dirname(__FILE__) . '/' . $classFile;
+  }
 }
 
-/**
- * Return mapper for use
- */
-$fixture_mappers = array();
-function fixture_mapper($mapperName)
-{
-	global $fixture_mappers; // I promise, globals are not used in the actual codebase, only for these tests...
-	if(!isset($fixture_mappers[$mapperName])) {
-		$mapperClass = 'Fixture_' . $mapperName . '_Mapper';
-		$fixture_mappers[$mapperName] = new $mapperClass(fixture_adapter());
-	}
-	return $fixture_mappers[$mapperName];
-}
+spl_autoload_register(array('phpDataMapper_TestHelper', 'loadClass'));
 
 
-/**
- * Return mapper for use
- */
-function phpdm_test_autoloader($className) {
-	$classFile = str_replace('_', '/', $className) . '.php';
-	require dirname(__FILE__) . '/' . $classFile;
-}
-spl_autoload_register('phpdm_test_autoloader');
-
-
-/**
- *
- */
 class TestMapper extends phpDataMapper_Mapper
 {
 	// Auto-migrate upon instantiation
