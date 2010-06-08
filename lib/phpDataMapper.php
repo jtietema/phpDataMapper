@@ -38,6 +38,12 @@ class phpDataMapper {
 	}
 	
 	
+	public static function warn($message)
+	{
+	  trigger_error($message, E_USER_WARNING);
+	}
+	
+	
 	/**
 	 * Prints all executed SQL queries - useful for debugging.
 	 */

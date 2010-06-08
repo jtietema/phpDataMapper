@@ -19,18 +19,6 @@ abstract class phpDataMapper_Mapper
 	protected $_adapterRead;
 	
 	
-	/**
-	 * A list of aliases for property types. This array maps the aliases to the actual types.
-	 *
-	 * @var array
-	 */
-	protected $_propertyTypeAliases = array(
-	  'int'     => 'integer',
-	  'decimal' => 'float',
-	  'bool'    => 'boolean'
-	);
-	
-	
 	// Array of error messages and types
 	protected $_errors = array();
 	
@@ -39,7 +27,13 @@ abstract class phpDataMapper_Mapper
 	protected $_relations = NULL;
 	protected $_primaryKey = NULL;
 	
-	// Data source setup info
+	
+	/**
+	 * Data source identifier. This can be either a table name, a URL or something else,
+	 * depending on the adapter type. This should be configured on every mapper subclass.
+	 *
+	 * @var string
+	 */
 	protected $_dataSource;
 	
 	
@@ -180,10 +174,6 @@ abstract class phpDataMapper_Mapper
 				if ($type == 'relation') {
 					$this->_relations[$name] = $options;
 					continue; // skip, not a field
-				}
-				
-				while (isset($this->_propertyTypeAliases[$type])) {
-				  $type = $this->_propertyTypeAliases[$type];
 				}
 				
 				$className = 'phpDataMapper_Property_' . $type;
