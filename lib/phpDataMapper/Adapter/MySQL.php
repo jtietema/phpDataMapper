@@ -174,12 +174,12 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 			}
 			
 			if ($property->option('unique')) {
-				$lines[] = "UNIQUE KEY `{$fieldKeyName}` (`{$fieldName}`)";
+				$lines[] = "UNIQUE KEY `{$keyName}` (`{$propertyName}`)";
 				$usedIndexNames[] = $keyName;
 			}
 			
 			if ($property->option('index')) {
-				$lines[] = "KEY `{$fieldKeyName}` (`{$fieldName}`)";
+				$lines[] = "KEY `{$keyName}` (`{$propertyName}`)";
 				$usedIndexNames[] = $keyName;
 			}
 		}
