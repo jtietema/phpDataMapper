@@ -731,6 +731,8 @@ abstract class phpDataMapper_Mapper
 	 */
 	public function validate(phpDataMapper_Entity $entity)
 	{
+	  $this->_errors = array();
+	  
 	  $this->beforeValidate($entity);
 	  
 		// Check validation rules on each feild
