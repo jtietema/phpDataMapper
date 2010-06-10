@@ -49,7 +49,7 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 	
 	
 	/**
-	 * List of fields that support the COLLATE operator.
+	 * List of column types that support the COLLATE operator.
 	 *
 	 * @var array
 	 */

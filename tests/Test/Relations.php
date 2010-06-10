@@ -1,4 +1,4 @@
-<?php
+<?PHP
 require_once dirname(__FILE__) . '/../init.php';
 
 /**
@@ -9,7 +9,22 @@ require_once dirname(__FILE__) . '/../init.php';
 class Test_Relations extends PHPUnit_Framework_TestCase
 {
 	protected $backupGlobals = false;
-	protected $blogMapper;
+	protected $postMapper;
+	protected static $blog;
+	
+	public static function setUpBeforeClass()
+	{
+	  $postMapper = phpDataMapper_TestHelper::mapper('Blogs', 'BlogMapper');
+		self::$blog = $postMapper->get()->data(array('name' => 'Blog About Testing'));
+		$postMapper->save(self::$blog);
+	}
+	
+  public static function tearDownAfterClass()
+  {
+    $postMapper = phpDataMapper_TestHelper::mapper('Blogs', 'BlogMapper');
+    $postMapper->truncateDataSource();
+    self::$blog = NULL;
+  }
 	
 	/**
 	 * Setup/fixtures for each test
@@ -17,24 +32,25 @@ class Test_Relations extends PHPUnit_Framework_TestCase
 	public function setUp()
 	{
 		// New mapper instance
-		$this->blogMapper = phpDataMapper_TestHelper::mapper('Blog');
+		$this->postMapper = phpDataMapper_TestHelper::mapper('Blogs', 'PostMapper');
 	}
 	public function tearDown() {}
 	
 	
 	public function testBlogPostInsert()
 	{
-		$post = $this->blogMapper->get();
+		$post = $this->postMapper->get();
+		$post->blog_id = self::$blog->id;
 		$post->title = "My Awesome Blog Post";
 		$post->body = "<p>This is a really awesome super-duper post.</p><p>It's testing the relationship functions.</p>";
-		$post->date_created = date($this->blogMapper->adapter()->dateTimeFormat());
-		$result = $this->blogMapper->save($post);
+		$post->date_created = date($this->postMapper->adapter()->dateTimeFormat());
+		$result = $this->postMapper->save($post);
 		
 		$this->assertTrue($result);
 		$this->assertTrue(is_numeric($post->id));
 		
 		// Test selcting it to ensure it exists
-		$postx = $this->blogMapper->get($post->id);
+		$postx = $this->postMapper->get($post->id);
 		$this->assertTrue($postx instanceof phpDataMapper_Entity);
 		
 		return $post->id;
@@ -45,8 +61,8 @@ class Test_Relations extends PHPUnit_Framework_TestCase
 	 */
 	public function testBlogCommentsRelationInsertByObject($postId)
 	{
-		$post = $this->blogMapper->get($postId);
-		$commentMapper = phpDataMapper_TestHelper::mapper('Blog_Comments');
+		$post = $this->postMapper->get($postId);
+		$commentMapper = phpDataMapper_TestHelper::mapper('Blogs', 'PostCommentsMapper');
 		
 		// Array will usually come from POST/JSON data or other source
 		$commentSaved = false;
@@ -77,7 +93,7 @@ class Test_Relations extends PHPUnit_Framework_TestCase
 	 */
 	public function testBlogCommentsRelationCountOne($postId)
 	{
-		$post = $this->blogMapper->get($postId);
+		$post = $this->postMapper->get($postId);
 		$this->assertTrue(count($post->comments) == 1);
 	}
 	
@@ -86,7 +102,7 @@ class Test_Relations extends PHPUnit_Framework_TestCase
 	 */
 	public function testBlogCommentsRelationReturnsRelationObject($postId)
 	{
-		$post = $this->blogMapper->get($postId);
+		$post = $this->postMapper->get($postId);
 		$this->assertTrue($post->comments instanceof phpDataMapper_Relation);
 	}
 	
@@ -95,7 +111,7 @@ class Test_Relations extends PHPUnit_Framework_TestCase
 	 */
 	public function testBlogCommentsRelationCanBeModified($postId)
 	{
-		$post = $this->blogMapper->get($postId);
+		$post = $this->postMapper->get($postId);
 		$sortedComments = $post->comments->order(array('date_created' => 'DESC'));
 		$this->assertTrue($sortedComments instanceof phpDataMapper_Query);
 	}

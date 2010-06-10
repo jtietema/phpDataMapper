@@ -738,7 +738,7 @@ abstract class phpDataMapper_Mapper
 			if ($property->option('required') === true) {
 				// Required field
 				if ($this->isEmpty($entity->$propertyName)) {
-					$this->error($field, "Required property '" . $propertyName . "' was left blank");
+					$this->error($propertyName, "Required property '" . $propertyName . "' was left blank");
 				}
 			}
 		}

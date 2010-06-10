@@ -1,4 +1,4 @@
-<?php
+<?PHP
 require_once dirname(__FILE__) . '/../init.php';
 
 /**
@@ -8,17 +8,31 @@ require_once dirname(__FILE__) . '/../init.php';
 class Test_CRUD extends PHPUnit_Framework_TestCase
 {
 	protected $backupGlobals = false;
-	protected $blogMapper;
+	protected static $blog;
+	protected $postMapper;
 	protected $dogMapper;
+	
+	public static function setUpBeforeClass()
+	{
+	  $blogMapper = phpDataMapper_TestHelper::mapper('Blogs', 'BlogMapper');
+		self::$blog = $blogMapper->get()->data(array('name' => 'Blog About Testing'));
+		$blogMapper->save(self::$blog);
+	}
+	
+  public static function tearDownAfterClass()
+  {
+    $blogMapper = phpDataMapper_TestHelper::mapper('Blogs', 'BlogMapper');
+    $blogMapper->truncateDataSource();
+    self::$blog = NULL;
+  }
 	
 	/**
 	 * Setup/fixtures for each test
-	 */
+	 */	
 	public function setUp()
-	{
-		// New mapper instance
-		$this->blogMapper = phpDataMapper_TestHelper::mapper('Blog');
-		$this->dogMapper = phpDataMapper_TestHelper::mapper('Dog');
+	{		
+		$this->postMapper = phpDataMapper_TestHelper::mapper('Blogs', 'PostMapper');
+		$this->dogMapper = phpDataMapper_TestHelper::mapper('Dogs', 'DogMapper');
 	}
 	public function tearDown() {
 	  $this->dogMapper->truncateDatasource();
@@ -32,13 +46,14 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	
 	public function testMapperInstance()
 	{
-		$this->assertTrue($this->blogMapper instanceof phpDataMapper_Mapper);
+		$this->assertTrue($this->postMapper instanceof phpDataMapper_Mapper);
 	}
 	
 	public function testSampleNewsInsert()
 	{
-		$mapper = $this->blogMapper;
+		$mapper = $this->postMapper;
 		$post = $mapper->get();
+		$post->blog_id = self::$blog->id;
 		$post->title = "Test Post";
 		$post->body = "<p>This is a really awesome super-duper post.</p><p>It's really quite lovely.</p>";
 		$post->date_created = date($mapper->adapter()->dateTimeFormat());
@@ -49,8 +64,9 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	
 	public function testSampleNewsInsertWithEmptyNonRequiredFields()
 	{
-		$mapper = $this->blogMapper;
+		$mapper = $this->postMapper;
 		$post = $mapper->get();
+		$post->blog_id = self::$blog->id;
 		$post->title = "Test Post With Empty Values";
 		$post->body = "<p>Test post here.</p>";
 		$post->date_created = null;
@@ -65,7 +81,7 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	
 	public function testSampleNewsUpdate()
 	{
-		$mapper = $this->blogMapper;
+		$mapper = $this->postMapper;
 		$post = $mapper->first(array('title' => "Test Post"));
 		
 		$this->assertTrue($post instanceof phpDataMapper_Entity);
@@ -78,7 +94,7 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	
 	public function testSampleNewsDelete()
 	{
-		$mapper = $this->blogMapper;
+		$mapper = $this->postMapper;
 		$post = $mapper->first(array('title' => "Test Post Modified"));
 		$result = $mapper->delete($post);
 		
@@ -87,9 +103,10 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	
 	public function testHandlesDefaultValues()
 	{
-	  $mapper = $this->blogMapper;
+	  $mapper = $this->postMapper;
 	  $post = $mapper->get();
 	  $this->assertEquals('DRAFT', $post->state);
+	  $post->blog_id = self::$blog->id;
 	  $post->title = 'title';
 	  $post->body = 'body';
 	  $result = $mapper->save($post);
@@ -98,7 +115,7 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	
 	public function testTracksDirtiness()
 	{
-	  $mapper = $this->blogMapper;
+	  $mapper = $this->postMapper;
 	  $post = $mapper->first();
 	  $this->assertFalse($post->dirty(), "Entity shouldn't be marked as dirty after loading.");
 	  $post->title = 'test';
@@ -139,11 +156,11 @@ class Test_CRUD extends PHPUnit_Framework_TestCase
 	
 	public function testCreateConvenienceMethod()
 	{
-	  $mapper = $this->blogMapper;
+	  $mapper = $this->postMapper;
 	  
 	  $title = time();
 	  
-	  $entity = $mapper->create(array('title' => $title, 'body' => 'the body'));
+	  $entity = $mapper->create(array('blog_id' => self::$blog->id, 'title' => $title, 'body' => 'the body'));
 	  $this->assertType('phpDataMapper_Entity', $entity);
 	  
 	  $entity2 = $mapper->first(array('title' => $title));

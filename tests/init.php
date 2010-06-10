@@ -20,10 +20,10 @@ class phpDataMapper_TestHelper
   }
   
   
-  public static function mapper($name)
+  public static function mapper($app, $name)
   {
     if (!isset(self::$_mappers[$name])) {
-      $className = 'Fixture_' . $name . '_Mapper';
+      $className = "Fixtures_{$app}_{$name}";
       self::$_mappers[$name] = new $className(self::adapter());
     }
     return self::$_mappers[$name];
@@ -40,7 +40,7 @@ class phpDataMapper_TestHelper
 spl_autoload_register(array('phpDataMapper_TestHelper', 'loadClass'));
 
 
-class TestMapper extends phpDataMapper_Mapper
+class phpDataMapper_TestMapper extends phpDataMapper_Mapper
 {
 	// Auto-migrate upon instantiation
 	public function init()

@@ -1,14 +1,17 @@
 <?PHP
-class Fixture_Dog_Mapper extends TestMapper
+/**
+ * Fixture class to test hooks.
+ */
+class Fixtures_Dogs_DogMapper extends phpDataMapper_TestMapper
 {
-  protected $_dataSource = 'test_dog';
+  protected $_dataSource = 'dogs_dog';
   
-  public $id = array('type' => 'integer', 'primary' => true, 'serial' => true);
-  public $name = array('type' => 'string', 'required' => true);
-  public $name_hash = array('type' => 'string', 'required' => true);
-  public $silly_property = array('type' => 'string');
-  public $created_at = array('type' => 'date');
-  public $updated_at = array('type' => 'date');
+  public $id              = array('type' => 'integer', 'primary' => true, 'serial' => true);
+  public $name            = array('type' => 'string', 'required' => true);
+  public $name_hash       = array('type' => 'string', 'required' => true);
+  public $silly_property  = array('type' => 'string');
+  public $created_at      = array('type' => 'date');
+  public $updated_at      = array('type' => 'date');
   
   
   public function beforeValidate(phpDataMapper_Entity $entity)
