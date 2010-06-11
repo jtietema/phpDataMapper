@@ -178,7 +178,7 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 				$usedIndexNames[] = $keyName;
 			}
 			
-			if ($property->option('index')) {
+			if ($property->option('index') || $property->option('key')) {
 				$lines[] = "KEY `{$keyName}` (`{$propertyName}`)";
 				$usedIndexNames[] = $keyName;
 			}
@@ -343,7 +343,7 @@ class phpDataMapper_Adapter_MySQL extends phpDataMapper_Adapter_PDO
 		    $uniqueIndexPropertyNames[] = $propertyName;
 		  }
 		  
-		  if ($property->option('index')) {
+		  if ($property->option('index') || $property->option('key')) {
 		    $indexPropertyNames[] = $propertyName;
 		  }
 		}
