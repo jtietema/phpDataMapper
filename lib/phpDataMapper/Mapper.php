@@ -309,7 +309,7 @@ abstract class phpDataMapper_Mapper
 		} else {		  
 		  $pkPropertyNames = $this->primaryKeyPropertyNames();
 		  if (count($pkPropertyNames) != count($pkValues)) {
-		    throw new InvalidArgumentException("Expected " . count($pkFields) . " primary key values, got "
+		    throw new InvalidArgumentException("Expected " . count($pkPropertyNames) . " primary key values, got "
 		      . count($pkValues));
 		  }
 		  
