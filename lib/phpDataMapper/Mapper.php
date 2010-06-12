@@ -737,7 +737,8 @@ abstract class phpDataMapper_Mapper
 	  
 		// Check validation rules on each feild
 		foreach($this->properties() as $propertyName => $property) {
-			if ($property->option('required') === true) {
+		  $requirePrimary = ($property->option('primary') && !($property->option('serial', false) && $entity->isNew()));
+			if ($property->option('required') || $requirePrimary) {
 				// Required field
 				if ($this->isEmpty($entity->$propertyName)) {
 					$this->error($propertyName, "Required property '" . $propertyName . "' was left blank");
