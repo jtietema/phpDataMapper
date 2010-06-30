@@ -176,7 +176,7 @@ abstract class phpDataMapper_Mapper
 					continue; // skip, not a field
 				}
 				
-				$className = 'phpDataMapper_Property_' . $type;
+				$className = 'phpDataMapper_Property_' . ucfirst(strtolower($type));
 				$property = new $className($name, $options);
 				
 				if ($property->option('primary') === true) {
